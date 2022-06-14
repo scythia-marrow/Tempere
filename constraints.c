@@ -8,37 +8,25 @@
 
 Constraint size(double size)
 {
-	Constraint con;
-	con.name = "size";
-	con.mask = uint32_t(DISTANCE::CLOSE);
-	con.dial = size;
+	Constraint con {"size", uint32_t(DISTANCE::CLOSE), size};
 	return con;
 }
 
 Constraint orientation(double orient)
 {
-	Constraint con;
-	con.name = "orientation";
-	con.mask = uint32_t(DISTANCE::CLOSE);
-	con.dial = orient;
+	Constraint con {"orientation", uint32_t(DISTANCE::CLOSE), orient};
 	return con;
 }
 
 Constraint complexity(double complexity)
 {
-	Constraint con;
-	con.name = "complexity";
-	con.mask = uint32_t(DISTANCE::CLOSE);
-	con.dial = complexity;
+	Constraint con {"complexity", uint32_t(DISTANCE::CLOSE), complexity};
 	return con;
 }
 
 Constraint perturbation(double delta)
 {
-	Constraint con;
-	con.name = "perturbation";
-	con.mask = uint32_t(DISTANCE::CLOSE);
-	con.dial = delta;
+	Constraint con {"perturbation", uint32_t(DISTANCE::CLOSE), delta};
 	return con;
 }
 

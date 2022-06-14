@@ -6,35 +6,52 @@
 
 #ifndef geom_h
 #define geom_h
-typedef struct vertex
+typedef struct vector
 {
 	double x;
 	double y;
-} Vertex;
+} Vector;
+
+using Vertex = Vector;
+
+typedef struct pair
+{
+	Vertex head;
+	Vertex tail;
+} Edge;
+
+typedef std::vector<Vertex> Polygon;
 
 // Vector ops
-Vertex add(Vertex, Vertex);
-Vertex scale(Vertex, double);
-Vertex normalize(Vertex);
-Vertex vec(Vertex, Vertex);
+Vector add(Vector, Vector);
+Vector scale(Vector, double);
+Vector normalize(Vector);
+Vector vec(Vertex, Vertex);
+double angle(Vector, Vector);
+double cross(Vector, Vector);
+double dot(Vector, Vector);
+double magnitude(Vector);
 // Basic ops
 bool eq(Vertex, Vertex);
-double angle(Vertex, Vertex);
-double cross(Vertex, Vertex);
-double dot(Vertex, Vertex);
-double l2_norm(Vertex, Vertex);
+bool eq(Vertex, Vertex, double);
+// Edge ops
+double arclen(Edge);
 // Polygon Measures
-double perimeter(std::vector<Vertex>);
-double signed_area(std::vector<Vertex>);
+double perimeter(Polygon);
+double signed_area(Polygon);
 // Polygon Midpoints
-Vertex midpoint(std::vector<Vertex>);
-Vertex centroid(std::vector<Vertex>);
+Vertex midpoint(Polygon);
+Vertex centroid(Polygon);
 // K-nn
 Vertex nearest_point(Vertex, std::vector<Vertex>);
 Vertex furthest_point(Vertex, std::vector<Vertex>);
 // Intersections
-Vertex intersect_ray_line(Vertex origin, Vertex dir, Vertex v1, Vertex v2);
-std::vector<Vertex> intersect_ray_poly(Vertex, Vertex, std::vector<Vertex>);
+Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2);
+std::vector<Vertex> intersect_ray_poly(Vertex, Vector, Polygon);
+Vertex intersect_edge_edge(Edge,Edge);
+std::vector<Polygon> tempere(Polygon,Polygon);
+// Polygon Tests
+bool interior(Vertex, Polygon);
 // Inclosure
-uint32_t winding_number(Vertex, std::vector<Vertex>);
+uint32_t winding_number(Vertex, Polygon);
 #endif

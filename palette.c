@@ -75,10 +75,7 @@ Color color_rand(Workspace* ws)
 
 Constraint palette(uint32_t mask, double shade)
 {
-	Constraint con;
-	con.name = "palette";
-	con.mask = mask;
-	con.dial = shade;
+	Constraint con {"palette", mask, shade};
 	return con;
 }
 

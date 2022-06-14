@@ -3,10 +3,10 @@
 
 #ifndef brushes_h
 #define brushes_h
-Callback solid(Workspace*, Segment*, Brush);
-Callback shape(Workspace*, Segment*, Brush);
-Callback line(Workspace*, Segment*, Brush);
-Callback shade(Workspace*, Segment*, Brush);
+Callback solid(Workspace*, Segment, Brush);
+Callback shape(Workspace*, Segment, Brush);
+Callback line(Workspace*, Segment, Brush);
+Callback shade(Workspace*, Segment, Brush);
 
 static Brush shape_brush
 {

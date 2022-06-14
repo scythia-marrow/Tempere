@@ -21,12 +21,12 @@ typedef struct linestate
 } LINE_STATE;
 
 // Matching code!
-double line_number(Segment* s, LINE_STATE state)
+double line_number(Segment s, LINE_STATE state)
 {
 	// Decide the number of lines
-	double area = abs(signed_area(s->boundary));
+	double area = abs(signed_area(s.boundary));
 	area = area < 1.0 ? 1.0 : area;
-	double N = ((s->scale * state.cmp) / (area * state.siz));
+	double N = ((s.scale * state.cmp) / (area * state.siz));
 	return N;
 }
 
@@ -34,25 +34,28 @@ double line_number(Segment* s, LINE_STATE state)
 std::vector<uint64_t> marked_ids(Workspace* ws, Brush b)
 {
 	std::vector<uint64_t> ret;
-	for(int i = 0; i < ws->segment.size(); i++)
+	std::vector<Segment> seg = ws->cut();
+	for(uint32_t i = 0; i < seg.size(); i++)
 	{
-		if(ws->br_cache[b].count(ws->segment[i])) { ret.push_back(i); }
+		if(ws->br_cache[b].count(seg[i])) { ret.push_back(i); }
 	}
 	return ret;
 }
 
 // Because the vertexes created only from constraints, they are the same!
-std::vector<Vertex> vertexes(Workspace* ws, Segment* s, Brush b)
+std::vector<Vertex> vertexes(Workspace* ws, Segment s, Brush b)
 {
+	/*
 	double size = match_accumulate_dial(
 		CONS::SIZE, b.cons, s->constraint);
 	double cmp = match_accumulate_dial(
 		CONS::COMPLEXITY, b.cons, s->constraint);
 	double ori = match_accumulate_dial(
 		CONS::ORIENTATION, b.cons, s->constraint);
+	*/
 	std::vector<Vertex> ret;
 	// The first vertex is the centroid
-	ret.push_back(scale(centroid(s->boundary), s->scale));
+	ret.push_back(scale(centroid(s.boundary), s.scale));
 	// TODO: this!
 	/*for(int i = 1; i < ws->br_cache[b][sg]; i++)
 	{
@@ -62,7 +65,7 @@ std::vector<Vertex> vertexes(Workspace* ws, Segment* s, Brush b)
 	return ret;
 }
 
-std::vector<Vertex> choose_vertex(Workspace* ws, LINE_STATE s, int N)
+std::vector<Vertex> choose_vertex(Workspace* ws, LINE_STATE s, uint32_t N)
 {
 	// Vector to return
 	std::vector<Vertex> ret;
@@ -73,11 +76,12 @@ std::vector<Vertex> choose_vertex(Workspace* ws, LINE_STATE s, int N)
 	// The weights
 	std::vector<std::pair<double, Vertex>> sorted;
 	// Insertion sort, nice and clean
+	/*
 	auto insertsort = [&](Vertex vrt, double weight) -> void
 	{
 		int i; for(i = 0; sorted[i].first < weight; i++); // Seek
 		sorted.insert(sorted.begin() + i, {weight, vrt});
-	};
+	};*/
 	// Calculate weight of each vertex based on orientation, dist, ect.
 	// TODO: start here!
 	// Return the first N from sorted
@@ -86,12 +90,12 @@ std::vector<Vertex> choose_vertex(Workspace* ws, LINE_STATE s, int N)
 		printf("NOT ENOUGH! %i\n", N);
 		return ret;
 	}
-	for(int i = 0; i < N; i++) { ret.push_back(sorted[i].second); }
+	for(uint32_t i = 0; i < N; i++) { ret.push_back(sorted[i].second); }
 	return ret;
 }
 
 // Some brushes!
-void linelambda(Workspace* ws, Segment* sg, LINE_STATE s)
+void linelambda(Workspace* ws, Segment sg, LINE_STATE s)
 {
 	// Store the number of vertexes in this segment
 	bool exists = ws->br_cache[s.brush].count(sg);
@@ -104,9 +108,9 @@ void linelambda(Workspace* ws, Segment* sg, LINE_STATE s)
 	std::vector<Vertex> tail = choose_vertex(ws, s, num);
 	if(head.size() == 0 || tail.size() == 0) { return; }
 
-	cairo_t* drawer = cairo_create(sg->canvas);
+	cairo_t* drawer = cairo_create(sg.canvas);
 	double size = s.siz * 10.0;
-	double area = abs(signed_area(sg->boundary));
+	//double area = abs(signed_area(sg.boundary));
 	size = size < 1.0 ? 1.0 : size;
 
 	Color c = s.color;
@@ -127,14 +131,14 @@ void linelambda(Workspace* ws, Segment* sg, LINE_STATE s)
 	cairo_destroy(drawer);
 }
 
-Callback line(Workspace* ws, Segment* s, Brush b)
+Callback line(Workspace* ws, Segment s, Brush b)
 {
 	// Ensure the cache is constructed
 	// ensure_cache(ws, b);
 	// Pick the line(s) palette
 	uint32_t palette_mask = 0;
 	Palette palette = pick_palette(ws, palette_mask);
-	Color color = pick_color(ws, &palette, s->constraint);
+	Color color = pick_color(ws, &palette, s.constraint);
 
 	// Create the costate for the lambda
 	LINE_STATE state = 
@@ -142,11 +146,11 @@ Callback line(Workspace* ws, Segment* s, Brush b)
 		.brush = b,
 		.color = color,
 		.siz = match_accumulate_dial(
-			CONS::SIZE, b.cons, s->constraint),
+			CONS::SIZE, b.cons, s.constraint),
 		.cmp = match_accumulate_dial(
-			CONS::COMPLEXITY, b.cons, s->constraint),
+			CONS::COMPLEXITY, b.cons, s.constraint),
 		.ori = match_accumulate_dial(
-			CONS::ORIENTATION, b.cons, s->constraint),
+			CONS::ORIENTATION, b.cons, s.constraint),
 	};
 
 	// Find the match

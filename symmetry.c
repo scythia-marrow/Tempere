@@ -9,43 +9,47 @@
 #include "render.h"
 #include "operators.h"
 
-int decide_symmetry(Segment* s, Operator op)
+int decide_symmetry(Segment s, Operator op)
 {
 	// Decide upon a symmetry
 	int N = 0;
 	double sym;
-	sym = match_accumulate_dial(CONS::COMPLEXITY, op.cons, s->constraint);
+	sym = match_accumulate_dial(CONS::COMPLEXITY, op.cons, s.constraint);
 	return int(sym * 8);
 }
 
-Segment* max_segment(Workspace* ws, Operator op)
+Segment max_segment(Workspace* ws, Operator op)
 {
 	// Find the largest segment (by perimeter)
 	double max_perim = 0.0;
-	Segment* max_seg = NULL;
-	for(auto v : ws->segment)
+	Segment* max_seg = new Segment;
+	for(auto s : ws->cut())
 	{
 		// Check if segment is marked
-		uint32_t mark = ws->op_cache[op][v];
+		uint32_t mark = ws->op_cache[op][s];
 		if(mark == 1) { continue; }
 		// Check if segment is complex enough
-		if(decide_symmetry(v, op) < 2) { continue; }
+		if(decide_symmetry(s, op) < 2) { continue; }
 		// Otherwise calculate the preim
-		std::vector<Vertex> bound = v->boundary;
+		std::vector<Vertex> bound = s.boundary;
 		double perim = perimeter(bound);
-		if(perim >= max_perim) {max_perim = perim; max_seg = v; }
+		if(perim >= max_perim)
+		{
+			max_perim = perim;
+			max_seg = new Segment{s};
+		}
 	}
 	//printf("\tMax Segment: %p\n", max_seg);
-	return max_seg;
+	return *max_seg;
 }
 
 // Map all indexes to one or more symmetrical directions
-std::map<int,std::vector<int>> find_interior(Segment* s, Vertex mid, int N)
+std::map<int,std::vector<int>> find_interior(Segment s, Vertex mid, int N)
 {
 	// The angle between lines
 	double ang = (2.0 * M_PI) / N;
 	// Check all boundary segments for intersections
-	int size = s->boundary.size();
+	uint32_t size = s.boundary.size();
 	// N segments needs N lines with as many intersection points
 	std::map<int,std::vector<int>> interior;
 	Vertex D_h;
@@ -57,9 +61,9 @@ std::map<int,std::vector<int>> find_interior(Segment* s, Vertex mid, int N)
 		D_h = {1.0001*sin(ang * h) , 0.9999*cos(ang * h)};
 		D_t = {0.9999*sin(ang * t) , 1.0001*cos(ang * t)};
 		// If the vertex is part of an arc, store it!
-		for(int i = 0; i < size; i++)
+		for(uint32_t i = 0; i < size; i++)
 		{
-			Vertex v = s->boundary[i];
+			Vertex v = s.boundary[i];
 			double angle_h = angle(D_h,vec(mid,v));
 			double angle_t = angle(D_t,vec(mid,v));
 			if(angle_h < ang && angle_t < ang)
@@ -79,12 +83,12 @@ struct edge {
 	int tail;
 };
 
-std::map<int,std::vector<struct edge>> find_edge(Segment* s, Vertex mid, int N)
+std::map<int,std::vector<struct edge>> find_edge(Segment s, Vertex mid, int N)
 {
 	// The angle between lines
 	double ang = (2.0 * M_PI) / N;
 	// Check all boundary segments for intersections
-	int size = s->boundary.size();
+	int size = s.boundary.size();
 	// N segments needs N lines with as many intersection points
 	std::map<int,std::vector<struct edge>> edges;
 	Vertex D_h;
@@ -99,8 +103,8 @@ std::map<int,std::vector<struct edge>> find_edge(Segment* s, Vertex mid, int N)
 		for(int v_h = 0; v_h < size; v_h++)
 		{
 			int v_t = (size + v_h + 1) % size;
-			Vertex vrt_h = s->boundary[v_h];
-			Vertex vrt_t = s->boundary[v_t];
+			Vertex vrt_h = s.boundary[v_h];
+			Vertex vrt_t = s.boundary[v_t];
 			Vertex inter_h =
 				intersect_ray_line(mid, D_h, vrt_h, vrt_t);
 			Vertex inter_t =
@@ -123,7 +127,7 @@ std::map<int,std::vector<struct edge>> find_edge(Segment* s, Vertex mid, int N)
 
 
 std::pair<int,std::vector<Vertex>> interior_chain(
-	Segment* s,
+	Segment s,
 	std::vector<Vertex> start,
 	std::vector<int> in,
 	std::vector<struct edge> edge,
@@ -146,7 +150,7 @@ std::pair<int,std::vector<Vertex>> interior_chain(
 	printf("\n");*/
 	// A cool for loop
 	int e = 1;
-	int size = s->boundary.size();
+	int size = s.boundary.size();
 	//printf("Chain: \n\t ");
 	int n = 0;
 	int k = 0;
@@ -168,7 +172,7 @@ std::pair<int,std::vector<Vertex>> interior_chain(
 			int P = std::find(in.begin(),in.end(),i) - in.begin();
 			if(P < (int)in.size())
 			{
-				chain.push_back(s->boundary[i]);
+				chain.push_back(s.boundary[i]);
 				continue;
 			}
 			n++;
@@ -178,12 +182,12 @@ std::pair<int,std::vector<Vertex>> interior_chain(
 		int real_h = (i == edge[e].head) ? edge[e].head : edge[e].tail;
 		int real_t = (i == edge[e].head) ? edge[e].tail : edge[e].head;
 		// Push back the head and the intersection point
-		chain.push_back(s->boundary[real_h]);
+		chain.push_back(s.boundary[real_h]);
 		chain.push_back(edge[e].inter);
 		// If this is the last edge stop the segment
 		e++;
 		if(e >= (int)edge.size()) { break; } // No combining ++ and >=
-		chain.push_back(s->boundary[real_t]);
+		chain.push_back(s.boundary[real_t]);
 	}
 	return std::pair(n,chain);
 }
@@ -192,7 +196,7 @@ std::pair<int,std::vector<Vertex>> interior_chain(
 // in both directions and choosing the shorter one.
 // TODO: add support for convex and disjointed segments!
 std::vector<Vertex> vertex_chain(
-	Segment* s,
+	Segment s,
 	Vertex mid,
 	std::vector<int> interior,
 	std::vector<struct edge> edge)
@@ -245,10 +249,10 @@ std::vector<Vertex> vertex_chain(
 	return chain;
 }
 
-void symmetrylambda(Workspace* ws, Segment* max_seg, int N)
+void symmetrylambda(Workspace* ws, Segment max_seg, int N)
 {
-	uint32_t foreground = ws->layer_relative(max_seg, 1); // Move forward
-	Vertex mid = centroid(max_seg->boundary); // Find the segment centroid
+	uint32_t foreground = max_seg.layer + 1; // Move forward
+	Vertex mid = centroid(max_seg.boundary); // Find the segment centroid
 	double phi = (2.0 * M_PI) / N; // The angle between lines.
 	std::map<int,std::vector<int>> interior =
 		find_interior(max_seg, mid, N);
@@ -257,7 +261,7 @@ void symmetrylambda(Workspace* ws, Segment* max_seg, int N)
 
 	
 	// Create new segments and boundaries
-	std::vector<Segment*> shards;
+	std::vector<Segment> shards;
 	for(int h = 0; h < N; h++)
 	{
 		// IF WE CANT FIND EDGES TODO: BUGFIX!
@@ -271,51 +275,19 @@ void symmetrylambda(Workspace* ws, Segment* max_seg, int N)
 		// Find the vertex intersection of the thingies
 		std::vector<Vertex> chain = vertex_chain(
 			max_seg, mid, interior[h], edge[h]);	
-		// Append the head intersection
-		Segment* new_seg = new Segment;
-		new_seg->layer = foreground;
-		new_seg->scale = max_seg->scale;
-		for(auto v : chain)
-		{
-			new_seg->boundary.push_back(v);
-		}
-		new_seg->canvas = max_seg->canvas;
-		shards.push_back(new_seg);
-	}
-	
-	// Link segments along boundary lines and to base
-	for(unsigned int i = 0; i < shards.size(); i++)
-	{
-		int h = (i + shards.size() - 1) % shards.size();
-		int t = (i + shards.size() + 1) % shards.size();
-		// Link both ways!
-		max_seg->link.insert(shards[i]);
-		// Link head and tail
-		shards[i]->link.insert(max_seg);
-		shards[i]->link.insert(shards[h]);
-		shards[i]->link.insert(shards[t]);
-		ws->segment.push_back(shards[i]);
-	}
-
-	// TODO: update constraints!
-	// Bring along constraints
-	for(auto s : shards)
-	{
-		for(auto c : max_seg->constraint)
-		{
-			s->constraint.push_back(c);
-		}
+		// Append the new segment
+		ws->addSegment(foreground, chain);
 	}
 }
 
 Callback symmetry(Workspace* ws, Operator op)
 {
 	// Find the usable segment with maximum perimeter
-	Segment* max_seg = max_segment(ws, op);
-	bool usable = max_seg == NULL ? false : true;
+	Segment max_seg = max_segment(ws, op);
+	bool usable = true;
 	// Parameters for the callback
 	//bool usable = N < 2 ? false : true; // Cannot break into <2 pieces
-	double match = (1.0 / log(1.0 + ws->segment.size())); // TODO: make this smarter
+	double match = (1.0 / log(1.0 + ws->cut().size())); // TODO: make this smarter
 
 	// The callback!
 	Callback ret

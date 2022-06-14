@@ -56,18 +56,19 @@ double weighted_sum(std::vector<std::pair<double, int>> v_wc)
 	return (sum_c / sum_w);
 }
 
-uint32_t measure_fbg(Workspace* ws, Operator op, Segment* s)
+uint32_t measure_fbg(Workspace* ws, Operator op, Segment s)
 {
 	// Back layers are background
-	int l_r = ws->max_layer - ws->min_layer;
-	double layer = l_r == 0 ?
-		0.0 :
-		(ws->min_layer + s->layer) / (1.0 * l_r);
+	uint32_t min = 0;
+	uint32_t max = 0;
+	for(auto &s : ws->cut()) { if(s.layer > max) { max = s.layer; } }
+	int l_r = max - min;
+	double layer = l_r == 0 ? 0.0 : (s.layer) / (1.0 * l_r);
 	// Complexity and size determines foreground and background
 	double comp = match_accumulate_dial(
-		CONS::COMPLEXITY, op.cons, s->constraint);
+		CONS::COMPLEXITY, op.cons, s.constraint);
 	double size = match_accumulate_dial(
-		CONS::SIZE, op.cons, s->constraint);
+		CONS::SIZE, op.cons, s.constraint);
 
 	// Depending on the direction we evaluate dials differently
 	std::function<double(double,uint32_t)> dirlambda =
@@ -96,7 +97,7 @@ uint32_t measure_fbg(Workspace* ws, Operator op, Segment* s)
 void update_fbg_cache(Workspace* ws, Operator op)
 {
 	// Find matching segments!
-	for(auto s : ws->segment)
+	for(auto s : ws->cut())
 	{
 		uint32_t place = 0;
 		if(ws->op_cache[op].count(s) >= 1)
@@ -119,7 +120,7 @@ struct stats
 	double sd;
 };
 
-void tweak_segment(Segment* s, double dis)
+void tweak_segment(Segment s, double dis)
 {
 	// Tweak segment size and complexity
 	// TODO: make this smarter!
@@ -131,13 +132,13 @@ void tweak_segment(Segment* s, double dis)
 void fbglambda(Workspace* ws, Operator op, struct stats stats)
 {
 	// Increase contrast by moving segments away from mean
-	for(auto s : ws->segment)
+	for(auto s : ws->cut())
 	{
 		double measure = 1.0 * ws->op_cache[op][s];
-		for(auto c : match_constraint(op.cons, s->constraint))
+		for(auto c : match_constraint(op.cons, s.constraint))
 		{
-			Constraint* con = &s->constraint[c.i];
-			double prev = con->dial;
+			Constraint con = s.constraint[c.i];
+			double prev = con.dial;
 			// Use the matching thunk
 			bool left = thunk(c.type).dir;
 			double scale = thunk(c.type).scale;
@@ -146,8 +147,9 @@ void fbglambda(Workspace* ws, Operator op, struct stats stats)
 			del = left ? -1.0 * del : del;
 			// Make sure the new dial has increased contrast
 			double dis = del < 0.0 ? prev : 1.0 - prev;
-			con->dial = prev + (dis * del * scale);
-
+			// Make a new constraint
+			Constraint n {con.name,0,prev + (dis * del * scale)};
+			ws->setConstraint(s,{n});
 			if(c.type == CONS::COMPLEXITY) {
 				//printf("STATS: %i %f %f %f %f %f %f\n", left, measure, stats.mean, del, dis, prev, con->dial);
 			}
@@ -170,7 +172,7 @@ Callback figureandground(Workspace* ws, Operator op)
 	double sum = 0.0;
 	double sq_sum = 0.0;
 	double n = 0.0;
-	for(auto s : ws->segment)
+	for(auto s : ws->cut())
 	{
 		uint32_t fbg_tendency = ws->op_cache[op][s];
 		min = fbg_tendency < min ? fbg_tendency : min;

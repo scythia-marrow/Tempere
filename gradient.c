@@ -27,13 +27,13 @@ union GRAD
 	};
 };
 
-GRAD gradCacheGet(Workspace* ws, Operator op, Segment* s)
+GRAD gradCacheGet(Workspace* ws, Operator op, Segment s)
 {
 	if(ws->op_cache[op].count(s)) { return {.word = ws->op_cache[op][s]}; }
 	return {.word = (uint32_t)-1};
 }
 
-void gradCacheSet(Workspace* ws, Operator op, Segment* s, GRAD g)
+void gradCacheSet(Workspace* ws, Operator op, Segment s, GRAD g)
 {
 	ws->op_cache[op][s] = g.word;
 }
@@ -41,7 +41,7 @@ void gradCacheSet(Workspace* ws, Operator op, Segment* s, GRAD g)
 std::map<uint64_t,GRAPH> readGrads(Workspace* ws, Operator op) {
 	std::map<uint64_t,GRAPH> ret;
 	int i = 0;
-	for(auto s : ws->segment)
+	for(auto s : ws->cut())
 	{
 		GRAD grad = gradCacheGet(ws, op, s);
 		if(grad.word == (uint32_t)-1) { continue; }
@@ -62,8 +62,8 @@ DIJKSTRAS_RET linkGraph(Workspace* ws)
 
 	// Make ID map
 	int i = 0;
-	std::map<Segment*,uint64_t> id;
-	for(auto s : ws->segment) { id[s] = i; i++; }
+	std::map<Segment,uint64_t> id;
+	for(auto s : ws->cut()) { id[s] = i; i++; }
 
 	// Do djkstras algorithm for graph and MST
 	std::map<uint64_t,uint64_t> dijkstra; dijkstra[0] = 0;
@@ -73,7 +73,8 @@ DIJKSTRAS_RET linkGraph(Workspace* ws)
 	{
 		uint64_t next = leaf.front(); leaf.pop_front();
 		core.insert(next);
-		for(auto l : ws->segment[next]->link)
+		/* TODO: FIX!
+		for(auto l : ws->cut()[next].geom)
 		{
 			uint64_t link = id[l];
 			lnk.push_back({next,link});
@@ -86,7 +87,8 @@ DIJKSTRAS_RET linkGraph(Workspace* ws)
 				mst.push_back({next,link});
 				leaf.push_back(link);
 			}
-		}	
+		}
+		*/
 	}
 	return {lnk,mst,max};
 }
@@ -106,7 +108,7 @@ uint32_t grdcon(Workspace* ws, Operator op, GRAPH graph)
 			double val = match_accumulate_dial(
 				con.second,
 				op.cons,
-				ws->segment[id]->constraint);
+				ws->cut()[id].constraint);
 			max = (max == -1.0 || val > max) ? val : max;
 			min = (min == -1.0 || val < max) ? val : min;
 		}
@@ -129,7 +131,7 @@ GRAPHSTAT graph_stats(Workspace* ws, Operator op, uint32_t c, GRAPH graph)
 	{
 		uint16_t id = g.second;
 		double val = match_accumulate_dial(
-			c, op.cons, ws->segment[id]->constraint);
+			c, op.cons, ws->cut()[id].constraint);
 		min = (min == -1.0 || val < min) ? val : min;
 		max = (max == -1.0 || val > max) ? val : max;
 		if(min == val) { minC = count; } 
@@ -186,7 +188,7 @@ double grdmatch(Workspace* ws, Operator op, std::map<uint64_t,GRAPH> gradient)
 			double val = match_accumulate_dial(
 				constraint,
 				op.cons,
-				ws->segment[id]->constraint);
+				ws->cut()[id].constraint);
 			double tgt = edge_target(count, stat);
 			diff.push_back(val - tgt);
 			count += 1.0;
@@ -214,8 +216,8 @@ void update_chains( Workspace* ws, Operator op, std::map<uint64_t,GRAPH> grad)
 		{
 			double target = edge_target(count, stat);
 			uint32_t id = g.second;
-			Segment* seg = ws->segment[id];
-			for(auto m : match_constraint(op.cons, seg->constraint))
+			Segment seg = ws->cut()[id];
+			for(auto m : match_constraint(op.cons, seg.constraint))
 			{
 				// Move it closer to the target TODO: scale!
 				if(m.type == constraint)
@@ -227,7 +229,9 @@ void update_chains( Workspace* ws, Operator op, std::map<uint64_t,GRAPH> grad)
 					double update =
 						m.dial +
 						(scale * diff * 0.3);
-					seg->constraint[m.i].dial = update;
+					
+					Constraint c = seg.constraint[m.i];
+					ws->setConstraint(seg, {{c.name, 0, update}});
 				}
 			}
 			count += 1.0;
@@ -237,7 +241,7 @@ void update_chains( Workspace* ws, Operator op, std::map<uint64_t,GRAPH> grad)
 
 GRAPH find_chain(Workspace* ws, DIJKSTRAS_RET dijk)
 {
-	uint16_t place = ws->rand() * (ws->segment.size() - 1);
+	uint16_t place = ws->rand() * (ws->cut().size() - 1);
 	GRAPH cand;
 	while(true)
 	{
@@ -284,7 +288,7 @@ void grdlambda(
 	for(auto g : cand)
 	{
 		GRAD grd; grd.id = max + 1; grd.pt = g.second;
-		gradCacheSet(ws, op, ws->segment[g.first], grd);
+		gradCacheSet(ws, op, ws->cut()[g.first], grd);
 	}
 }
 

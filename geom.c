@@ -17,26 +17,33 @@ Vertex scale(Vertex a, double scale)
 Vertex normalize(Vertex a)
 {
 	Vertex origin {0.0, 0.0};
-	double len = l2_norm(origin, a);
+	double len = arclen((Edge){origin, a});
 	return scale(a, 1.0 / len);
 }
 
-Vertex vec(Vertex a, Vertex b)
+Vector vec(Vertex a, Vertex b)
 {
 	return {b.x - a.x, b.y - a.y};
 }
 
 bool eq(Vertex a, Vertex b)
 {
-	return (a.x == b.x && a.y == b.y);
+	return eq(a,b,0.01);
 }
 
-double magnitude(Vertex a)
+bool eq(Vertex a, Vertex b, double eps)
+{
+	bool eqx = ((a.x - b.x) < eps) ? a.x > b.x : ((b.x - a.x) < eps);
+	bool eqy = ((a.y - b.y) < eps) ? a.y > b.y : ((b.y - a.y) < eps);
+	return eqx && eqy;
+}
+
+double magnitude(Vector a)
 {
 	return sqrt(a.x * a.x + a.y * a.y);
 }
 
-double angle(Vertex a, Vertex b)
+double angle(Vector a, Vector b)
 {
 	double mag_sum = magnitude(a) * magnitude(b);
 	double dot_sum = dot(a,b);
@@ -44,32 +51,30 @@ double angle(Vertex a, Vertex b)
 	return acos(quot);
 }
 
-double cross(Vertex a, Vertex b)
+double cross(Vector a, Vector b)
 {
 	return a.x * b.y - a.y * b.x;
 }
 
-double dot(Vertex a, Vertex b)
+double dot(Vector a, Vector b)
 {
 	return a.x * b.x + a.y * b.y;
 }
 
-double l2_norm(Vertex a, Vertex b)
+double arclen(Edge e)
 {
-	double x = b.x - a.x;
-	double y = b.y - a.y;
-	return sqrt(x*x + y*y);
+	return magnitude(vec(e.head,e.tail));
 }
 
 double perimeter(std::vector<Vertex> vertexes)
 {
 	//printf("Vertexes: %i", vertexes.size());
 	if(vertexes.size() < 2) { return 0.0; }
-	double perim = l2_norm(vertexes[0], vertexes[1]);
-	perim += l2_norm(vertexes[vertexes.size() - 1], vertexes[0]);
+	double perim = arclen((Edge){vertexes[0], vertexes[1]});
+	perim += arclen((Edge){vertexes[vertexes.size() - 1], vertexes[0]});
 	for(unsigned int v = 1; v < vertexes.size() - 1; v++)
 	{
-		perim += l2_norm(vertexes[v], vertexes[v + 1]);
+		perim += arclen((Edge){vertexes[v], vertexes[v + 1]});
 	}
 	return perim;
 }
@@ -81,7 +86,9 @@ double signed_area(std::vector<Vertex> point)
 	for(int h = 0; h < size; h++)
 	{
 		int t = (size + h + 1) % size;
-		area_s += cross(point[h],point[t]);
+		Vertex head = point[h];
+		Vertex tail = point[t];
+		area_s += cross(head, tail);
 	}
 	return area_s / 2.0;
 }
@@ -106,9 +113,11 @@ Vertex centroid(std::vector<Vertex> point)
 	for(int h = 0; h < size; h++)
 	{
 		int t = (size + h + 1) % size;
-		double a = cross(point[h], point[t]);
-		centroid.x += (point[h].x + point[t].x) * a;
-		centroid.y += (point[h].y + point[t].y) * a;
+		Vertex head = point[h];
+		Vertex tail = point[t];
+		double a = cross(head, tail);
+		centroid.x += (head.x + tail.x) * a;
+		centroid.y += (head.y + tail.y) * a;
 	}
 
 	centroid.x /= (6.0 * area_s);
@@ -118,11 +127,11 @@ Vertex centroid(std::vector<Vertex> point)
 	return centroid;
 }
 
-Vertex intersect_ray_line(Vertex origin, Vertex dir, Vertex v1, Vertex v2)
+Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2)
 {
-	Vertex p1 = add(origin, scale(v1, -1.0));
-	Vertex p2 = add(v2, scale(v1, -1.0));
-	Vertex p3 {-1.0f * dir.y, dir.x};
+	Vector p1 = add(origin, scale(v1, -1.0));
+	Vector p2 = add(v2, scale(v1, -1.0));
+	Vector p3 {-1.0f * dir.y, dir.x};
 
 	double D = dot(p2,p3);
 	if(abs(D) < 0.00001) { return origin; }
@@ -134,7 +143,7 @@ Vertex intersect_ray_line(Vertex origin, Vertex dir, Vertex v1, Vertex v2)
 	Vertex returner;
 	if (t1 >= 0.0 && (t2 >= 0.0 && t2 <= 1.0))
 	{
-		returner = add(origin, scale(dir, t1));
+		returner = add(origin, (Vertex)scale(dir, t1));
 	} else
 	{
 		returner = origin;
@@ -143,8 +152,7 @@ Vertex intersect_ray_line(Vertex origin, Vertex dir, Vertex v1, Vertex v2)
 	return returner;
 }
 
-std::vector<Vertex> intersect_ray_poly(
-	Vertex o, Vertex dir, std::vector<Vertex> poly)
+std::vector<Vertex> intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
 {
 	std::vector<Vertex> ret;
 	int size = poly.size();
@@ -153,10 +161,6 @@ std::vector<Vertex> intersect_ray_poly(
 		int t = (size + h + 1) % size;
 		Vertex vrt = intersect_ray_line(o, dir, poly[h], poly[t]);
 		if(eq(vrt,o)) { continue; }
-		// TODO: MAKE A BETTER FIX!
-		bool breaker = false;
-		for(auto v : ret) { breaker = true; break; }
-		if(breaker) { continue; }
 		ret.push_back(vrt);
 	}
 	return ret;
@@ -168,7 +172,7 @@ Vertex nearest_point(Vertex o, std::vector<Vertex> vtx)
 	double dis = -1.0;
 	for(auto v : vtx)
 	{
-		double nrm = l2_norm(o,v);
+		double nrm = arclen((Edge){o,v});
 		dis = dis == -1.0 || nrm < dis ? nrm : dis;
 	}
 	return ret;
@@ -180,7 +184,7 @@ Vertex furthest_point(Vertex o, std::vector<Vertex> vtx)
 	double dis = -1.0;
 	for(auto v : vtx)
 	{
-		double nrm = l2_norm(o,v);
+		double nrm = arclen((Edge){o,v});
 		dis = dis == -1.0 || nrm > dis ? nrm : dis;
 	}
 	return ret;
