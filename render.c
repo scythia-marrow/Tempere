@@ -19,6 +19,9 @@
 #include "operators.h"
 #include "constraints.h"
 
+// TODO: need a header file for these companion definitions
+Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d);
+
 // We weight operators and brushes by Zip's law to make distinct pictures with
 // the same operators. Think different "languages" based on the same phonemes
 std::vector<double> zipfs_weight(Workspace* ws, int N)
@@ -46,19 +49,17 @@ Layer::Layer(std::vector<Vertex> start)
 	std::vector<uint32_t> vid;
 	for(uint32_t v = 0; v < start.size(); v++)
 	{
-		vertex.push_back(start[i]);
+		vertex.push_back(start[v]);
 		vid.push_back(v);
 	}
-	shard root = {0, vid};
-	perim.push_back(root);
-	geomRel[0] = {};
-	constraint[0] = {};
+	segment root = {0, vid};
+	shard.push_back(root);
 }
 
-bool Layer::tempere(std::vector<Vertex()> boundary)
+bool Layer::tempere(std::vector<Vertex> boundary)
 {
 	// Check for coverage and intersections
-	for(auto p : perim)
+	for(auto p : shard)
 	{
 		std::vector<Vertex> perimiter;
 		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
@@ -66,25 +67,25 @@ bool Layer::tempere(std::vector<Vertex()> boundary)
 	}
 }
 
-std::vector<Segment> Layer::segment(Workspace* ws)
+std::vector<Segment> Layer::recache(Workspace* ws)
 {
 
 
 }
 
 // Workspace class definitions
-Workspace::Workspace(cairo_canvas_t* can, std::vector<Vertex> boundary)
+Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 {
 	// Store the canvas
-	canvas = can;
+	const_canvas = can;
 	// Resolution of the canvas
-	int cairoX = cairo_image_surface_get_width(canvas);
-	int cairoY = cairo_image_surface_get_height(canvas);
+	int cairoX = cairo_image_surface_get_width(can);
+	int cairoY = cairo_image_surface_get_height(can);
 	// X and Y scale
-	double tempereX = boundary[1][0] - boundary[0][0];
-	double tempereY = boundary[1][1] - boundary[2][1];
+	double tempereX = boundary[1].x - boundary[0].x;
+	double tempereY = boundary[1].y - boundary[2].y;
 	// The scale difference
-	scale = cairoX / tempereX;
+	const_scale = cairoX / tempereX;
 	// Create a random lambda that avoids the GODAMN BOILERPLATE!
 	// Because random is statefull we need a mutable tab
 	// This is bonkers but at least you CAN do bonkers stuff in C++
@@ -101,21 +102,20 @@ Workspace::Workspace(cairo_canvas_t* can, std::vector<Vertex> boundary)
 bool Workspace::layoutStep()
 {
 	// Collect all segments in a cache
-	segshard.clear()
 	std::vector<Segment> seg;
-	for(auto l : layer)
+	for(auto & [_,l] : layer)
 	{
-		for(auto s : l->segment()) { seg.push_back(s); }	
+		for(auto s : l->recache(this)) { seg.push_back(s); }	
 	}
-	for(int i = 0; i < seg.size(); i++) { segshard.push_back(&seg[i]); }
+	// for(int i = 0; i < seg.size(); i++) { segshard.push_back(&seg[i]); }
 	// Zipf's weighting
-	std::vector<double> zipfs = zipfs_weight(this, op.size());
+	std::vector<double> zipfs = zipfs_weight(this, oper.size());
 	// Find the best operator
 	std::vector<Callback> cand;
 	uint32_t z = 0;
-	for(auto o : op)
+	for(auto o : oper)
 	{
-		Callback layout = op.layout(this, o);
+		Callback layout = o.layout(this, o);
 		layout.match *= zipfs[z]; // zipf's weighting!
 		cand.push_back(layout);
 		z++;
@@ -123,14 +123,14 @@ bool Workspace::layoutStep()
 	// Pre breaking condition(s)
 	if(cand.size() == 0) { return false; }
 	// Weighted choice
-	Callback cb = weighted_choice(ws, cand, 0.0);
+	Callback cb = weighted_choice(this, cand, 0.0);
 	// Run the operator if possible
 	if(cb.usable) { cb.callback(); }
 	else { return false; }
 }
 
 bool Workspace::addBrush(Brush b) { brush.push_back(b); }
-bool Workspace::addOperator(Operator op) { op.push_back(op); }
+bool Workspace::addOperator(Operator op) { oper.push_back(op); }
 bool Workspace::addConstraint(Constraint con) { constraint.push_back(con); }
 
 bool Workspace::runTempere(uint32_t steps)
@@ -157,9 +157,9 @@ void init_workspace(Workspace* ws)
 	ws->addOperator(focal_point_operator);
 	ws->addOperator(gradient_operator);
 	// Brushes are found in the brushes.h file!
-	ws->brush.push_back(solid_brush);
-	ws->brush.push_back(shape_brush);
-	ws->brush.push_back(line_brush);
+	ws->addBrush(solid_brush);
+	ws->addBrush(shape_brush);
+	ws->addBrush(line_brush);
 }
 
 // TODO: binary search (probably last optimization to do xD)
@@ -185,10 +185,11 @@ Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d)
 	return {false, 0.0, NULL};
 }
 
+/*
 void layout_picture(Workspace* ws)
 {
 	// Zipf's weighting
-	std::vector<double> zipfs = zipfs_weight(ws, ws->op.size());
+	std::vector<double> zipfs = zipfs_weight(ws, ws->oper.size());
 	// When the threshold for choosing an op is too high, stop
 	double threshold, min = -1.0; // TODO: should be max?
 	
@@ -197,7 +198,7 @@ void layout_picture(Workspace* ws)
 		// Find all applicable operators
 		std::vector<Callback> cand;
 		uint32_t z = 0;
-		for(auto op : ws->op)
+		for(auto op : ws->)
 		{
 			Callback layout = op.layout(ws, op);
 			layout.match *= zipfs[z]; // zipf's weighting!
@@ -218,7 +219,8 @@ void layout_picture(Workspace* ws)
 		printf("Operator %f: %f %f\n", cb.match, min, threshold);
 	}
 }
-
+*/
+/*
 void paint_picture(Workspace* ws)
 {
 	// Zipf's weighting
@@ -257,7 +259,8 @@ void paint_picture(Workspace* ws)
 		for(auto cb : frozen) { cb.callback(); }
 	}
 }
-
+*/
+/*
 void render_picture(Workspace* ws)
 {
 	// Draw a background color
@@ -267,8 +270,9 @@ void render_picture(Workspace* ws)
 	layout_picture(ws);
 	paint_picture(ws);
 }
+*/
 
-void save_picture(cairo_canvas_t* canvas, std::string filename)
+void save_picture(cairo_surface_t* canvas, std::string filename)
 {
 	cairo_surface_write_to_png(canvas,filename.c_str());
 }
@@ -278,7 +282,7 @@ void test_render(std::string filename)
 {
 	// The beggining boundary is just all edges!
 	// Default aspect ratio is 16:9, or 1920 x 1080
-	cairo_canvas_t* canvas;
+	cairo_surface_t* canvas;
 	std::vector<Vertex> boundary = {
 		{0.0,0.0},
 		{16.0,0.0},
@@ -292,7 +296,7 @@ void test_render(std::string filename)
 	// Run the tempere algorithm to completion
 	draft->runTempere(-1);
 	// Render the picture to a canvas
-	draft->render(120.0,canvas);
+	draft->render();
 	// Save the picture to a file.
 	save_picture(canvas, filename);
 	// A happy little message that everything is fine :)

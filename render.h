@@ -204,12 +204,12 @@ namespace std
 // it also holds global and local constraints
 class Layer
 {
-	struct shard
+	struct segment
 	{
 		uint32_t sid;
 		std::vector<uint32_t> vid;
 	};
-	std::vector<shard> perim;
+	std::vector<segment> shard;
 	std::vector<Vertex> vertex;
 	// Map: global -> local. Rev: local -> global.
 	std::map<uint32_t,uint32_t> segMap;
@@ -217,12 +217,12 @@ class Layer
 	// Geometry relationships (purely local)
 	std::map<uint32_t,std::vector<uint32_t>> geomRel;
 	std::map<uint32_t,std::vector<Constraint>> constraint;
-	// Initialization
-	Layer(std::vector<Vertex>);
 	// A single cache response
 	Segment cache(uint32_t globalID, uint32_t localID);
 	public:
-		bool tempere(std::vector<Vertex()> boundary);
+		// Initialization
+		Layer(std::vector<Vertex>);
+		bool tempere(std::vector<Vertex> boundary);
 		std::vector<Segment> recache(Workspace* ws);
 		std::vector<uint32_t> geom(Segment);
 };
@@ -230,6 +230,9 @@ class Layer
 // A workspace holds layers and cairo drawing context.
 class Workspace
 {
+	// Scale and canvas are private, read-only
+	double const_scale;
+	cairo_surface_t* const_canvas;
 	// There is always a background layer
 	Layer* background;
 	// A list of layers sorted by height. Min is zero.
@@ -243,18 +246,18 @@ class Workspace
 	// The constraints which direct brushes
 	std::vector<Constraint> constraint;
 	// The operators which can modify segments and impose constraints
-	std::vector<Operator> op;
+	std::vector<Operator> oper;
 	// The brushes that consume constraints to produce art!
 	std::vector<Brush> brush;
-	// Initializer for the workspace
-	Workspace();
-	Workspace(cairo_surface_t*,std::vector<Vertex>);
 	// A single layout step
 	bool layoutStep();
 	// The next layer on which boundary fits without envelopment
 	uint32_t bounceLayer(uint32_t, std::vector<Vertex> boundary);
 	// Function Utilities
 	public:
+		// Initializer for the workspace
+		Workspace();
+		Workspace(cairo_surface_t*,std::vector<Vertex>);
 		// Segment creation and manipulation
 		uint32_t nextSegment();
 		void ensureSegment(Segment);
@@ -274,8 +277,8 @@ class Workspace
 		bool runTempere(uint32_t steps);
 		bool render();
 		// Brush specific public data
-		const double scale;
-		cairo_surface_t* canvas;
+		double scale() { return const_scale; }
+		cairo_surface_t* canvas() { return const_canvas; };
 		std::function<double()> rand;
 };
 #endif
