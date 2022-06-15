@@ -19,6 +19,9 @@
 #include "operators.h"
 #include "constraints.h"
 
+// debug imports
+#include <iostream>
+
 // TODO: need a header file for these companion definitions
 Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d);
 
@@ -56,6 +59,34 @@ Layer::Layer(std::vector<Vertex> start)
 	shard.push_back(root);
 }
 
+Segment Layer::cache(Workspace* ws, uint32_t gid, uint32_t id, uint32_t height)
+{
+	// Cache the global id and reverse
+	segMap[id] = gid;
+	segRev[gid] = id;
+	// Create a new Segment from local knowledge
+	segment sh = shard[id];
+	std::vector<Vertex> bound;
+	for(auto v : sh.vid) { bound.push_back(vertex[v]); }
+	std::vector<Constraint> con = constraint[id];
+	Segment ret = {gid, ws->canvas(), ws->scale(), height, bound, con};
+	return ret;
+}
+
+std::vector<Segment> Layer::recache(
+	Workspace* ws, uint32_t height, std::function<uint32_t()> gidgenerator)
+{
+	std::vector<Segment> ret;
+	for(auto sh : shard)
+	{
+		uint32_t gid = gidgenerator();
+		ret.push_back(cache(ws, gid, sh.sid, height));
+	}
+	return ret;
+}
+
+std::vector<uint32_t> Layer::geom(Segment s) { return geomRel[segRev[s.sid]]; }
+
 bool Layer::tempere(std::vector<Vertex> boundary)
 {
 	// Check for coverage and intersections
@@ -65,12 +96,6 @@ bool Layer::tempere(std::vector<Vertex> boundary)
 		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
 		// Is there coverage?
 	}
-}
-
-std::vector<Segment> Layer::recache(Workspace* ws)
-{
-
-
 }
 
 // Workspace class definitions
@@ -99,13 +124,21 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 	height.push_back(0);
 }
 
+uint32_t Workspace::nextSegment() { return segment.size(); }
+
 bool Workspace::layoutStep()
 {
 	// Collect all segments in a cache
 	std::vector<Segment> seg;
-	for(auto & [_,l] : layer)
+	for(auto & [h,l] : layer)
 	{
-		for(auto s : l->recache(this)) { seg.push_back(s); }	
+		// Create a generator for all these new gids
+		uint32_t monoid = nextSegment();
+		std::function<uint32_t()> gidgen = [=]() mutable -> uint32_t
+		{
+			return monoid++;
+		};
+		for(auto s : l->recache(this,h, gidgen)) { seg.push_back(s); }	
 	}
 	// for(int i = 0; i < seg.size(); i++) { segshard.push_back(&seg[i]); }
 	// Zipf's weighting
@@ -129,14 +162,36 @@ bool Workspace::layoutStep()
 	else { return false; }
 }
 
-bool Workspace::addBrush(Brush b) { brush.push_back(b); }
-bool Workspace::addOperator(Operator op) { oper.push_back(op); }
-bool Workspace::addConstraint(Constraint con) { constraint.push_back(con); }
+bool Workspace::addBrush(Brush b) { brush.push_back(b); return true; }
+bool Workspace::addOperator(Operator op) { oper.push_back(op); return true; }
+bool Workspace::addConstraint(Constraint con)
+{
+	constraint.push_back(con);
+	return true;
+}
 
 bool Workspace::runTempere(uint32_t steps)
 {
+	std::cout << "IMPLEMENT TEMPERE CODE" << std::endl;
+	return false;
+}
 
+std::vector<Segment> Workspace::cut() { return segment; }
 
+void Workspace::addSegment(uint32_t layer, std::vector<Vertex> bound)
+{
+	std::cout << "IMPLEMENT SEGMENT ADD CODE" << std::endl;
+}
+
+void Workspace::setConstraint(Segment, std::vector<Constraint>)
+{
+	std::cout << "IMPLEMENT CONSTRAINT UPDATE CODE" << std::endl;
+}
+
+bool Workspace::render()
+{
+	std::cout << "IMPLEMENT RENDER CODE" << std::endl;
+	return false;
 }
 
 void init_workspace(Workspace* ws)

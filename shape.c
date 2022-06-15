@@ -60,13 +60,13 @@ void draw_ngon(cairo_t* drawer, int N, double area, Vertex mid, struct dials d)
 	cairo_fill(drawer);
 }
 
-void shapelambda(Segment* s, Color col, int N, struct dials d)
+void shapelambda(Segment s, Color col, int N, struct dials d)
 {
 	// Create a shape in the center of the segment scaled to the area
-	double area = abs(signed_area(s->boundary)) * s->scale * s->scale;
-	Vertex mid = scale(centroid(s->boundary),s->scale);
+	double area = abs(signed_area(s.boundary)) * s.scale * s.scale;
+	Vertex mid = scale(centroid(s.boundary),s.scale);
 	// Create a canvas to draw on!
-	cairo_t* drawer = cairo_create(s->canvas);
+	cairo_t* drawer = cairo_create(s.canvas);
 	cairo_set_source_rgba(drawer, col.red, col.green, col.blue, 1.0);
 	// Draw a circle if complexity is too low!
 	if(N < 3) { draw_circle(drawer, area, mid, d); }
@@ -75,7 +75,7 @@ void shapelambda(Segment* s, Color col, int N, struct dials d)
 	cairo_destroy(drawer);
 }
 
-Callback shape(Workspace* ws, Segment* s, Brush b)
+Callback shape(Workspace* ws, Segment s, Brush b)
 {
 	// TODO: use orientation and entropy to modify stuff!
 	// Check size, complexity, and palette constraints
@@ -84,7 +84,7 @@ Callback shape(Workspace* ws, Segment* s, Brush b)
 	//double com_dial = -1.0;
 	//double siz_dial = -1.0;
 	//double ori_dial = -1.0;
-	for(auto x : match_constraint(b.cons, s->constraint))
+	for(auto x : match_constraint(b.cons, s.constraint))
 	{
 		switch(x.type)
 		{
@@ -105,7 +105,7 @@ Callback shape(Workspace* ws, Segment* s, Brush b)
 	
 	// Choose a palette and color!
 	Palette pal = pick_palette(ws, palette_mask);
-	Color col = pick_color(ws, &pal, s->constraint);
+	Color col = pick_color(ws, &pal, s.constraint);
 
 	// Decide what shape depending on complexity!
 	// Make a linear map between com and N = 10

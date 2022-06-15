@@ -171,6 +171,18 @@ typedef struct segment
 		layer{s.layer},
 		boundary{s.boundary},
 		constraint{s.constraint} {};
+	segment(uint32_t sid,
+		cairo_surface_t* canvas,
+		double scale,
+		uint32_t layer,
+		std::vector<Vertex> bound,
+		std::vector<Constraint> con) : 
+		sid{sid},
+		canvas{canvas},
+		scale{scale},
+		layer{layer},
+		boundary(bound),
+		constraint(con) {};
 } Segment;
 
 inline bool operator ==(const Segment &a, const Segment &b)
@@ -218,12 +230,15 @@ class Layer
 	std::map<uint32_t,std::vector<uint32_t>> geomRel;
 	std::map<uint32_t,std::vector<Constraint>> constraint;
 	// A single cache response
-	Segment cache(uint32_t globalID, uint32_t localID);
+	Segment cache(Workspace*, uint32_t gid, uint32_t sid, uint32_t height);
 	public:
 		// Initialization
 		Layer(std::vector<Vertex>);
 		bool tempere(std::vector<Vertex> boundary);
-		std::vector<Segment> recache(Workspace* ws);
+		std::vector<Segment> recache(
+			Workspace* ws,
+			uint32_t height,
+			std::function<uint32_t()> gidgen);
 		std::vector<uint32_t> geom(Segment);
 };
 
