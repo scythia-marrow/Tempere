@@ -235,11 +235,17 @@ class Layer
 		// Initialization
 		Layer(std::vector<Vertex>);
 		bool tempere(std::vector<Vertex> boundary);
+		std::vector<uint32_t> geom(Segment);
+		// Get all uncached segments
+		std::vector<Segment> unmappedSegment(
+			Workspace*,
+			uint32_t,
+			std::function<uint32_t()>);
+		// Force a full recache
 		std::vector<Segment> recache(
 			Workspace* ws,
 			uint32_t height,
 			std::function<uint32_t()> gidgen);
-		std::vector<uint32_t> geom(Segment);
 };
 
 // A workspace holds layers and cairo drawing context.
@@ -266,9 +272,13 @@ class Workspace
 	std::vector<Brush> brush;
 	// A single layout step
 	bool layoutStep();
+	// A single draw step
+	bool drawSegment(Segment);
 	// The next layer on which boundary fits without envelopment
+	Layer* addLayer(uint32_t height, std::vector<Vertex> boundary);
 	uint32_t bounceLayer(uint32_t, std::vector<Vertex> boundary);
 	// Function Utilities
+	bool ensureReadyRender();
 	public:
 		// Initializer for the workspace
 		Workspace();

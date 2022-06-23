@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <cassert>
 
 // C++ imports
 #include <vector>
@@ -98,6 +99,24 @@ bool Layer::tempere(std::vector<Vertex> boundary)
 	}
 }
 
+std::vector<Segment> Layer::unmappedSegment(
+	Workspace* ws, uint32_t height, std::function<uint32_t()> gidgen)
+{
+	// Make sure all segments are mapped, make a list of unmapped segments
+	std::vector<segment> remap;
+	for(auto s : shard)
+	{
+		if(segRev.count(s.sid) == 0) { remap.push_back(s); }
+	}
+	std::vector<Segment> ret;
+	// Remap all unmapped segments
+	for(auto r : remap)
+	{
+		ret.push_back(cache(ws, gidgen(), r.sid, height));
+	}
+	return ret;
+}
+
 // Workspace class definitions
 Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 {
@@ -119,9 +138,19 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 	gen.seed(std::chrono::system_clock::now().time_since_epoch().count());
 	rand = [=]() mutable -> double { return dis(gen); };
 	// Setup the root layer
-	background = new Layer(boundary);
-	layer[0] = background;
-	height.push_back(0);
+	background = addLayer(0,boundary);
+}
+
+Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
+{
+	Layer* ptr = new Layer(boundary);
+	assert(layer.count(h) == 0);
+	// Keep the heights sorted
+	auto i = std::upper_bound(height.begin(), height.end(), h);
+	height.insert(i,h);
+	// Store the layer
+	layer[h] = ptr;
+	return ptr;
 }
 
 uint32_t Workspace::nextSegment() { return segment.size(); }
@@ -173,6 +202,8 @@ bool Workspace::addConstraint(Constraint con)
 bool Workspace::runTempere(uint32_t steps)
 {
 	std::cout << "IMPLEMENT TEMPERE CODE" << std::endl;
+	// Basically, run layout steps untill we are done.
+	
 	return false;
 }
 
@@ -188,10 +219,49 @@ void Workspace::setConstraint(Segment, std::vector<Constraint>)
 	std::cout << "IMPLEMENT CONSTRAINT UPDATE CODE" << std::endl;
 }
 
+bool Workspace::ensureReadyRender()
+{
+	// A gid generator
+	uint32_t base = nextSegment();
+	std::function<uint32_t()> gidgen = [=]() mutable -> uint32_t
+	{
+		return base++;
+	};
+	// Ensure all layers are segmented properly
+	for(auto h : height)
+	{
+		Layer* l = layer[h];
+		std::vector<Segment> next = l->unmappedSegment(this,h,gidgen);
+		for(auto n : next) { segment.push_back(n); }
+	}
+	return true;
+}
+
+bool Workspace::drawSegment(Segment s)
+{
+	return false;
+}
+
 bool Workspace::render()
 {
-	std::cout << "IMPLEMENT RENDER CODE" << std::endl;
-	return false;
+	// Ensure all layers are segmented properly
+	if(!ensureReadyRender()) { return false;  }
+	// Draw a background color
+	Brush back = brush[0]; // The solid brush
+	std::vector<Segment> seg = cut();
+	back.draw(this, seg[0], back).callback(); // The background segment
+	// Draw by layer
+	for(auto h : height)
+	{
+		for(auto s : seg)
+		{
+			if(s.layer == h)
+			{
+				if(!drawSegment(s)) { return false; }
+			}
+		}
+	}
+	return true;
 }
 
 void init_workspace(Workspace* ws)

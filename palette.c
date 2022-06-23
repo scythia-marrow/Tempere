@@ -14,6 +14,9 @@
 #include "render.h"
 #include "geom.h"
 
+// TODO: REMOVE
+#include <iostream>
+
 // Single color palettes
 static std::vector<std::string> white
 {
@@ -187,11 +190,19 @@ Color pick_color(
 	double dial_d = match_accumulate_dial(
 		CONS::PERTURBATION, map, constraints);
 
+	// TODO: debug this!
+	if(dial_d == -1.0) { dial_d = 0.5; }
+	if(dial_p == -1.0) { dial_p = 0.0; }
+	
 	float del = dial_d;
 	float del_inv = 1.0 - del;
 	int place = (del_inv * dial_p + del * ws->rand()) * p->primary.size();
 
-// Small perturbation!
+	// Small perturbation!
+	if(place > p->primary.size() || place < 0)
+	{
+		return {"black", 0.0, 0.0, 0.0};
+	}
 	Color color = p->primary[place];
 	return color;
 }
