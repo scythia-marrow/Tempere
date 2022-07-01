@@ -131,6 +131,7 @@ void tweak_segment(Segment s, double dis)
 // Increase contrast by nudging segments away from each other
 void fbglambda(Workspace* ws, Operator op, struct stats stats)
 {
+	printf("FOREGROUND BACKGROUND...\n");
 	// Increase contrast by moving segments away from mean
 	for(auto s : ws->cut())
 	{

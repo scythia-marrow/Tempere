@@ -102,12 +102,14 @@ bool Layer::tempere(std::vector<Vertex> boundary)
 std::vector<Segment> Layer::unmappedSegment(
 	Workspace* ws, uint32_t height, std::function<uint32_t()> gidgen)
 {
+	std::cout << "TOTAL SHARDS " << shard.size() << std::endl;
 	// Make sure all segments are mapped, make a list of unmapped segments
 	std::vector<segment> remap;
 	for(auto s : shard)
 	{
 		if(segRev.count(s.sid) == 0) { remap.push_back(s); }
 	}
+	std::cout << "UNMAPPED SHARDS " << remap.size() << std::endl;
 	std::vector<Segment> ret;
 	// Remap all unmapped segments
 	for(auto r : remap)
@@ -155,23 +157,23 @@ Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
 
 uint32_t Workspace::nextSegment() { return segment.size(); }
 
-bool Workspace::layoutStep()
+double Workspace::layoutStep(std::vector<double> zipfs)
 {
-	// Collect all segments in a cache
-	std::vector<Segment> seg;
+	// Clear previous segment cache
+	segment.clear();
 	for(auto & [h,l] : layer)
 	{
-		// Create a generator for all these new gids
+		// Create a generator for new gids
 		uint32_t monoid = nextSegment();
 		std::function<uint32_t()> gidgen = [=]() mutable -> uint32_t
 		{
 			return monoid++;
 		};
-		for(auto s : l->recache(this,h, gidgen)) { seg.push_back(s); }	
+		for(auto s : l->recache(this,h, gidgen))
+		{
+			segment.push_back(s);
+		}	
 	}
-	// for(int i = 0; i < seg.size(); i++) { segshard.push_back(&seg[i]); }
-	// Zipf's weighting
-	std::vector<double> zipfs = zipfs_weight(this, oper.size());
 	// Find the best operator
 	std::vector<Callback> cand;
 	uint32_t z = 0;
@@ -182,13 +184,19 @@ bool Workspace::layoutStep()
 		cand.push_back(layout);
 		z++;
 	}
+	std::cout << "CAND " << cand.size() << std::endl;
 	// Pre breaking condition(s)
-	if(cand.size() == 0) { return false; }
+	if(cand.size() == 0) { return 0.0; }
 	// Weighted choice
 	Callback cb = weighted_choice(this, cand, 0.0);
 	// Run the operator if possible
 	if(cb.usable) { cb.callback(); }
-	else { return false; }
+	if(!cb.usable) { std::cout << "UNUSABLE!" << std::endl; }
+	// Find the (new) threshold
+	double max = 0.0;
+	for(auto c : cand) { max = c.match > max ? c.match : max; }
+	std::cout << "NEW THRESHOLD " << max << std::endl;
+	return max;
 }
 
 bool Workspace::addBrush(Brush b) { brush.push_back(b); return true; }
@@ -201,10 +209,23 @@ bool Workspace::addConstraint(Constraint con)
 
 bool Workspace::runTempere(uint32_t steps)
 {
-	std::cout << "IMPLEMENT TEMPERE CODE" << std::endl;
-	// Basically, run layout steps untill we are done.
+	// Run a certain amount of layout steps
+	// Zipf's weighting for operators
+	std::vector<double> zipfs = zipfs_weight(this, oper.size());
 	
-	return false;
+	double threshold = -1.0;
+	double min = -1.0;
+	uint32_t step = 0;
+	while(threshold == -1.0 || min == -1.0 || min < threshold)
+	{
+		// Break at the hardcoded step limit
+		if(!(steps == -1) && step >= steps) { break; }
+		else { step += 1; }
+		// Otherwise, layout the picture one step at a time
+		threshold = layoutStep(zipfs);
+		min = min == -1 ? 0.0 : min + 0.01;
+	}
+	return true;
 }
 
 std::vector<Segment> Workspace::cut() { return segment; }
@@ -227,6 +248,7 @@ bool Workspace::ensureReadyRender()
 	{
 		return base++;
 	};
+	std::cout << "READYING LAYERS" << std::endl;
 	// Ensure all layers are segmented properly
 	for(auto h : height)
 	{
@@ -237,9 +259,37 @@ bool Workspace::ensureReadyRender()
 	return true;
 }
 
-bool Workspace::drawSegment(Segment s)
+std::vector<Callback> Workspace::drawSegment(Segment s, std::vector<double> z)
 {
-	return false;
+	// Arrange candidates in priority order
+	std::vector<Callback> cand;
+	uint32_t zid = 0;
+	for(auto b : brush)
+	{
+		Callback draw = b.draw(this, s, b);
+		draw.match *= z[zid]; // zipf's weighting!
+		cand.push_back(draw);
+		zid++;
+	}
+	// The callbacks to completed drawing lambdas
+	std::vector<Callback> ret;
+	// Breaking condition
+	if(cand.size() == 0) { return ret; }
+	// Weighted choice
+	Callback cb = weighted_choice(this, cand, 1.0);
+	if(!cb.usable) { return ret; }
+	ret.push_back(cb);
+	// Additional draws (If prio calls for it)
+	double adjust = 0.5;
+	double r;
+	while((r = rand()) < (cb.priority * adjust))
+	{
+		cb = weighted_choice(this, cand, adjust);
+		if(!cb.usable) { break; }
+		ret.push_back(cb);
+		adjust *= 0.5;
+	}
+	return ret;
 }
 
 bool Workspace::render()
@@ -250,17 +300,27 @@ bool Workspace::render()
 	Brush back = brush[0]; // The solid brush
 	std::vector<Segment> seg = cut();
 	back.draw(this, seg[0], back).callback(); // The background segment
+	// Zipfs weighting for brushes
+	std::vector<double> zipfs = zipfs_weight(this, brush.size());
 	// Draw by layer
+	std::vector<Callback> frozen;
 	for(auto h : height)
 	{
 		for(auto s : seg)
 		{
 			if(s.layer == h)
 			{
-				if(!drawSegment(s)) { return false; }
+				std::cout << "Drawing Segment "
+					<< s.sid << "..." << std::endl;
+				for(auto cb : drawSegment(s, zipfs))
+				{
+					insertsort(frozen, cb);
+				}
 			}
 		}
 	}
+	// Call all drawing callbacks in priority order
+	for(auto cb : frozen) { cb.callback(); }
 	return true;
 }
 
@@ -299,8 +359,14 @@ Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d)
 		return (d * c.match) + ((1.0 - d) * (1.0 - c.priority));
 	};
 	std::vector<Callback> cand;
-	for(auto cb : cbs) { if(cb.usable) { cand.push_back(cb); } }
-	double sum = 0.0; for(auto c : cand) { sum += weight(c); }
+	for(auto cb : cbs)
+	{
+		std::cout << cb.priority << " " << weight(cb) << std::endl;
+		if(cb.usable && (weight(cb) > 0.0)) { cand.push_back(cb); }
+	}
+	std::cout << "CLEANED CANDIDATES " << cand.size() << std::endl;
+	double sum = 0.0;
+	for(auto c : cand) { sum += weight(c); }
 	double pick = sum * ws->rand();
 	for(auto c : cand)
 	{
@@ -419,7 +485,8 @@ void test_render(std::string filename)
 	// Initialize all the constraints, operators, and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
-	draft->runTempere(-1);
+	//draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
+	draft->runTempere(3);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.

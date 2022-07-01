@@ -276,6 +276,7 @@ void grdlambda(
 	Workspace* ws, Operator op,
 	std::map<uint64_t,GRAPH> gradient, DIJKSTRAS_RET dijk)
 {
+	printf("GRADIENT...\n");
 	// Update chains
 	update_chains(ws, op, gradient); //TODO: RETURN thingy!
 	// Use the MST to find a chain

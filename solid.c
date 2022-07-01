@@ -69,6 +69,7 @@ Callback solid(Workspace* ws, Segment s, Brush b)
 		.priority = b.priority,
 		.callback = [=]() mutable -> void
 		{
+			//printf("Drawing Solid...\n");
 			solidlambda(s, color);
 		}
 	};

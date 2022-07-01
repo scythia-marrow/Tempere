@@ -271,9 +271,9 @@ class Workspace
 	// The brushes that consume constraints to produce art!
 	std::vector<Brush> brush;
 	// A single layout step
-	bool layoutStep();
+	double layoutStep(std::vector<double> zipfs);
 	// A single draw step
-	bool drawSegment(Segment);
+	std::vector<Callback> drawSegment(Segment s, std::vector<double> zipf);
 	// The next layer on which boundary fits without envelopment
 	Layer* addLayer(uint32_t height, std::vector<Vertex> boundary);
 	uint32_t bounceLayer(uint32_t, std::vector<Vertex> boundary);

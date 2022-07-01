@@ -156,7 +156,6 @@ Callback line(Workspace* ws, Segment s, Brush b)
 	// Find the match
 	double N = line_number(s, state);
 	double match = N <= 0.0 ? 0.0 : (1.0 / (1.0 + log(N)));
-	printf("line match! %f\n", match);
 
 	Callback ret
 	{
@@ -165,6 +164,7 @@ Callback line(Workspace* ws, Segment s, Brush b)
 		.priority = b.priority,
 		.callback = [=]() mutable -> void
 		{
+			//printf("Drawing Line...\n");
 			linelambda(ws, s, state);
 		}
 	};

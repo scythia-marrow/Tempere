@@ -297,6 +297,7 @@ Callback symmetry(Workspace* ws, Operator op)
 		.priority = 1.0,
 		.callback = [=]() mutable -> void
 		{
+			printf("SYMMETRY...\n");
 			// If we proceed, mark this segment as used
 			ws->op_cache[op][max_seg] = 1;
 			int N = decide_symmetry(max_seg, op);

@@ -273,6 +273,7 @@ void constraint_tweaks(Workspace* ws, Operator op, std::set<uint32_t> fp)
 
 void fplambda(Workspace* ws, Operator op)
 {
+	printf("FOCAL POINTS...\n");
 	std::set<uint32_t> fp_idx = fp_indexes(ws, op);
 
 	//printf("\tNUM FOCAL POINTS: %i\n", fp_idx.size());

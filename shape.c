@@ -123,6 +123,7 @@ Callback shape(Workspace* ws, Segment s, Brush b)
 		.priority = b.priority,
 		.callback = [=]() mutable -> void
 		{
+			//printf("Drawing Shape...\n");
 			shapelambda(s, col, N, d);
 		}
 	};
