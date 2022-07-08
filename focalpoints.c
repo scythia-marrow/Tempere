@@ -6,6 +6,8 @@
 #include <set>
 #include <map>
 
+#include <iostream>
+
 // module imports
 #include "geom.h"
 #include "render.h"
@@ -171,7 +173,7 @@ uint32_t fp_c_c(Workspace* ws, Operator op, std::set<uint32_t> fp)
 	uint32_t idx = -1;
 	for(int i = 0; i < ws->cut().size(); i++)
 	{
-		if(fp.count(i)) { continue; }
+		if(!fp.count(i)) { continue; }
 		double d = fp_dis(ws, op, ws->cut()[i], fp_c(ws, op, fp, i));
 		idx = d > max ? i : idx;
 		max = d > max ? d : max;
@@ -205,15 +207,14 @@ void fp_segment_add(Workspace* ws, Operator op, uint32_t fp_new)
 	Segment ns = ws->cut()[fp_new];
 	Vertex o = centroid(ns.boundary);
 	uint32_t layer = ns.layer + 1; // Move up a layer
-	uint32_t next = ws->nextSegment();
-	ws->addSegment(layer, bbox(o)); // Add the focal point to the workspace
-	ws->op_cache[op][ws->cut()[next]] = -1; // Mark as a focal point
+	ws->addSegment(op, layer, bbox(o), -1); // Add the focalpoint to the WS
 	// TODO: add links!
 }
 
 void constraint_tweak(Workspace* ws, Operator op, Segment s, uint32_t fp)
 {
 	// Change orientation so it is more consistent
+	std::cout << fp << ws->cut().size() << std::endl;
 	Segment fp_seg = ws->cut()[fp];
 	Vertex H = centroid(s.boundary);
 	Vertex T = centroid(fp_seg.boundary);
@@ -279,12 +280,7 @@ void fplambda(Workspace* ws, Operator op)
 	//printf("\tNUM FOCAL POINTS: %i\n", fp_idx.size());
 
 	uint32_t fp_new = fp_add(ws, op, fp_idx);
-	if(fp_new != -1) // TODO: add more logic?
-	{
-		fp_idx.emplace(ws->cut().size());
-		fp_segment_add(ws, op, fp_new);
-	}
-
+	if(fp_new != -1) { fp_segment_add(ws, op, fp_new); }
 	// Tweak constraints to make them better!
 	constraint_tweaks(ws, op, fp_idx);
 }

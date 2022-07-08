@@ -262,6 +262,11 @@ class Workspace
 	// And a list of segments
 	uint32_t registerSegmentID = 0;
 	std::vector<Segment> segment;
+	std::function<uint32_t()> sidGen()
+	{
+		uint32_t monoid = segment.size();
+		return [=]() mutable -> uint32_t { return monoid++; };
+	};
 	// A map of logical relationships between segments
 	std::map<uint32_t,std::vector<uint32_t>> logic;
 	// The constraints which direct brushes
@@ -284,10 +289,13 @@ class Workspace
 		Workspace();
 		Workspace(cairo_surface_t*,std::vector<Vertex>);
 		// Segment creation and manipulation
-		uint32_t nextSegment();
 		void ensureSegment(Segment);
-		void addSegment(uint32_t, std::vector<Vertex> boundary);
 		void setConstraint(Segment, std::vector<Constraint>);
+		void addSegment(
+			Operator op,
+			uint32_t layer,
+			std::vector<Vertex> boundary,
+			uint32_t mark);
 		// Find segments with a certain match, default all segments
 		std::vector<Segment> cut();
 		std::vector<Segment> geomRel(Segment);

@@ -249,7 +249,7 @@ std::vector<Vertex> vertex_chain(
 	return chain;
 }
 
-void symmetrylambda(Workspace* ws, Segment max_seg, int N)
+void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 {
 	uint32_t foreground = max_seg.layer + 1; // Move forward
 	Vertex mid = centroid(max_seg.boundary); // Find the segment centroid
@@ -275,8 +275,8 @@ void symmetrylambda(Workspace* ws, Segment max_seg, int N)
 		// Find the vertex intersection of the thingies
 		std::vector<Vertex> chain = vertex_chain(
 			max_seg, mid, interior[h], edge[h]);	
-		// Append the new segment
-		ws->addSegment(foreground, chain);
+		// Append the new segment with no mark
+		ws->addSegment(op, foreground, chain, 0);
 	}
 }
 
@@ -301,7 +301,7 @@ Callback symmetry(Workspace* ws, Operator op)
 			// If we proceed, mark this segment as used
 			ws->op_cache[op][max_seg] = 1;
 			int N = decide_symmetry(max_seg, op);
-			symmetrylambda(ws, max_seg, N);
+			symmetrylambda(ws, op, max_seg, N);
 		}
 	};
 

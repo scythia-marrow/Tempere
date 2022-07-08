@@ -3,6 +3,8 @@
 
 // C++ imports
 #include <vector>
+#include <iostream>
+
 
 // module imports
 #include <cairo.h>
@@ -106,6 +108,7 @@ void linelambda(Workspace* ws, Segment sg, LINE_STATE s)
 	// Draw lines if there are enough matches to justify them
 	std::vector<Vertex> head = vertexes(ws, sg, s.brush);
 	std::vector<Vertex> tail = choose_vertex(ws, s, num);
+	std::cout << "LINE DRAW " << head.size() << " " << tail.size() << std::endl;
 	if(head.size() == 0 || tail.size() == 0) { return; }
 
 	cairo_t* drawer = cairo_create(sg.canvas);

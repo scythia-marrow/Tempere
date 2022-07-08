@@ -39,6 +39,7 @@ std::vector<double> zipfs_weight(Workspace* ws, int N)
 	return weight;
 }
 
+// Insert Callback b into vector cb in order of decreasing priority
 void insertsort(std::vector<Callback> &cb, Callback b)
 {
 	int i; int s = cb.size();
@@ -141,6 +142,8 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 	rand = [=]() mutable -> double { return dis(gen); };
 	// Setup the root layer
 	background = addLayer(0,boundary);
+	// Setup the most basic constraints
+	
 }
 
 Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
@@ -155,21 +158,13 @@ Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
 	return ptr;
 }
 
-uint32_t Workspace::nextSegment() { return segment.size(); }
-
 double Workspace::layoutStep(std::vector<double> zipfs)
 {
 	// Clear previous segment cache
 	segment.clear();
 	for(auto & [h,l] : layer)
 	{
-		// Create a generator for new gids
-		uint32_t monoid = nextSegment();
-		std::function<uint32_t()> gidgen = [=]() mutable -> uint32_t
-		{
-			return monoid++;
-		};
-		for(auto s : l->recache(this,h, gidgen))
+		for(auto s : l->recache(this,h, sidGen()))
 		{
 			segment.push_back(s);
 		}	
@@ -182,12 +177,18 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 		Callback layout = o.layout(this, o);
 		layout.match *= zipfs[z]; // zipf's weighting!
 		cand.push_back(layout);
+		/*
+		std::cout << "OPERATOR " << o.name
+			<< " " << layout.usable
+			<< " " << layout.match
+			<< " " << layout.priority << std::endl;
+		*/
 		z++;
 	}
-	std::cout << "CAND " << cand.size() << std::endl;
+	// std::cout << "CAND " << cand.size() << std::endl;
 	// Pre breaking condition(s)
 	if(cand.size() == 0) { return 0.0; }
-	// Weighted choice
+	// Weighted choice only by match
 	Callback cb = weighted_choice(this, cand, 0.0);
 	// Run the operator if possible
 	if(cb.usable) { cb.callback(); }
@@ -230,7 +231,11 @@ bool Workspace::runTempere(uint32_t steps)
 
 std::vector<Segment> Workspace::cut() { return segment; }
 
-void Workspace::addSegment(uint32_t layer, std::vector<Vertex> bound)
+void Workspace::addSegment(
+	Operator op,
+	uint32_t layer,
+	std::vector<Vertex> bound,
+	uint32_t mark)
 {
 	std::cout << "IMPLEMENT SEGMENT ADD CODE" << std::endl;
 }
@@ -243,17 +248,12 @@ void Workspace::setConstraint(Segment, std::vector<Constraint>)
 bool Workspace::ensureReadyRender()
 {
 	// A gid generator
-	uint32_t base = nextSegment();
-	std::function<uint32_t()> gidgen = [=]() mutable -> uint32_t
-	{
-		return base++;
-	};
 	std::cout << "READYING LAYERS" << std::endl;
 	// Ensure all layers are segmented properly
 	for(auto h : height)
 	{
 		Layer* l = layer[h];
-		std::vector<Segment> next = l->unmappedSegment(this,h,gidgen);
+		std::vector<Segment> next = l->unmappedSegment(this,h,sidGen());
 		for(auto n : next) { segment.push_back(n); }
 	}
 	return true;
@@ -275,11 +275,14 @@ std::vector<Callback> Workspace::drawSegment(Segment s, std::vector<double> z)
 	std::vector<Callback> ret;
 	// Breaking condition
 	if(cand.size() == 0) { return ret; }
-	// Weighted choice
-	Callback cb = weighted_choice(this, cand, 1.0);
+	// Weighted choice only by match
+	Callback cb = weighted_choice(this, cand, 0.0);
 	if(!cb.usable) { return ret; }
 	ret.push_back(cb);
-	// Additional draws (If prio calls for it)
+	// Additional draws weighted by priority
+	// TODO: allow brushes to indicate a probability of being done after
+	// running once. This will allow multiple brushes on the same segment
+	// while also allowing for sorting of brushstrokes by priority.
 	double adjust = 0.5;
 	double r;
 	while((r = rand()) < (cb.priority * adjust))
@@ -310,61 +313,67 @@ bool Workspace::render()
 		{
 			if(s.layer == h)
 			{
+				frozen.clear();
 				std::cout << "Drawing Segment "
 					<< s.sid << "..." << std::endl;
 				for(auto cb : drawSegment(s, zipfs))
 				{
 					insertsort(frozen, cb);
 				}
+				// Call drawbacks for segment in prio order
+				for(auto cb : frozen) { cb.callback(); }
 			}
 		}
 	}
-	// Call all drawing callbacks in priority order
-	for(auto cb : frozen) { cb.callback(); }
 	return true;
 }
 
 void init_workspace(Workspace* ws)
 {
-	Constraint plt = palette((uint32_t)palette::RAND,0.0);
-	Constraint cmp = complexity(0.5);
-	Constraint sze = size(0.5);
-	Constraint prt = perturbation(0.5); // TODO: large
-	Constraint ori = orientation(0.0);
-	ws->addConstraint(plt);
-	ws->addConstraint(cmp);
-	ws->addConstraint(sze);
-	ws->addConstraint(prt);
-	ws->addConstraint(ori);
+	// Constraints are found in the constraints.h file
+	std::vector<Constraint> constraint =
+	{
+		palette((uint32_t)palette::RAND,0.0),
+		complexity(0.5),
+		size(0.5),
+		perturbation(0.5),
+		orientation(0.5)
+	};
+	for(auto con : constraint) { ws->addConstraint(con); }
 	// Operators are found in the operators.h file!
-	ws->addOperator(symmetry_operator);
-	ws->addOperator(figure_and_ground_operator);
-	ws->addOperator(focal_point_operator);
-	ws->addOperator(gradient_operator);
+	std::vector<Operator> oper = 
+	{
+		symmetry_operator,
+		figure_and_ground_operator,
+		focal_point_operator,
+		gradient_operator
+	};
+	for(auto op : oper) { ws->addOperator(op); }
 	// Brushes are found in the brushes.h file!
-	ws->addBrush(solid_brush);
-	ws->addBrush(shape_brush);
-	ws->addBrush(line_brush);
+	std::vector<Brush> brush =
+	{
+		solid_brush,
+		shape_brush,
+		line_brush
+	};
+	for(auto br : brush) { ws->addBrush(br); }
 }
 
 // TODO: binary search (probably last optimization to do xD)
 Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d)
 {
-	// So the first choice needs to be just the match.
-	// But the next needs to weight more and more by priority...
-	// We weight the choice by match and priority.
-	// Because the priority determines chain, we weight by its inverse
+	// Weight the choice by how well it matches the workspace
 	auto weight = [=](Callback c) -> double
 	{
-		return (d * c.match) + ((1.0 - d) * (1.0 - c.priority));
+		return (c.match);
 	};
 	std::vector<Callback> cand;
 	for(auto cb : cbs)
 	{
-		std::cout << cb.priority << " " << weight(cb) << std::endl;
+		//std::cout << cb.priority << " " << weight(cb) << std::endl;
 		if(cb.usable && (weight(cb) > 0.0)) { cand.push_back(cb); }
 	}
-	std::cout << "CLEANED CANDIDATES " << cand.size() << std::endl;
+	// std::cout << "CLEANED CANDIDATES " << cand.size() << std::endl;
 	double sum = 0.0;
 	for(auto c : cand) { sum += weight(c); }
 	double pick = sum * ws->rand();
