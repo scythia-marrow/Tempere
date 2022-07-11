@@ -120,6 +120,12 @@ std::vector<Segment> Layer::unmappedSegment(
 	return ret;
 }
 
+void Layer::updateConstraint(Segment seg, std::vector<Constraint> con)
+{
+	uint32_t sid = segMap[seg.sid];
+	constraint[sid] = con;
+}
+
 // Workspace class definitions
 Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 {
@@ -142,8 +148,11 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 	rand = [=]() mutable -> double { return dis(gen); };
 	// Setup the root layer
 	background = addLayer(0,boundary);
+	// Ensure that we are immediately ready for all operations
+	ensureReadyLayout();
+	ensureReadyRender();
 	// Setup the most basic constraints
-	
+	// TODO: interesting exploration of constraint space
 }
 
 Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
@@ -158,17 +167,23 @@ Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
 	return ptr;
 }
 
-double Workspace::layoutStep(std::vector<double> zipfs)
+bool Workspace::ensureReadyLayout()
 {
-	// Clear previous segment cache
+	// Clear previous segment cache and recache everything
 	segment.clear();
 	for(auto & [h,l] : layer)
 	{
-		for(auto s : l->recache(this,h, sidGen()))
+		for(auto s : l->recache(this, h, sidGen()))
 		{
 			segment.push_back(s);
 		}	
 	}
+	return true;
+}
+
+double Workspace::layoutStep(std::vector<double> zipfs)
+{
+	if(!ensureReadyLayout()) { return false; };
 	// Find the best operator
 	std::vector<Callback> cand;
 	uint32_t z = 0;
@@ -203,8 +218,18 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 bool Workspace::addBrush(Brush b) { brush.push_back(b); return true; }
 bool Workspace::addOperator(Operator op) { oper.push_back(op); return true; }
 bool Workspace::addConstraint(Constraint con)
-{
+{ 
 	constraint.push_back(con);
+	// Distribute the constraint to all segments in all layers
+	for(auto s : cut())
+	{
+		Layer* l = layer[s.layer];
+		std::vector<Constraint> cons = s.constraint;
+		cons.push_back(con);
+		l->updateConstraint(s, cons);
+	}
+	// Update caches to perserve the change
+	ensureReadyLayout();
 	return true;
 }
 
@@ -237,12 +262,15 @@ void Workspace::addSegment(
 	std::vector<Vertex> bound,
 	uint32_t mark)
 {
-	std::cout << "IMPLEMENT SEGMENT ADD CODE" << std::endl;
+	std::cout << "IMPLEMENT ADD SEGMENT CODE" << std::endl;
 }
 
-void Workspace::setConstraint(Segment, std::vector<Constraint>)
+void Workspace::setConstraint(Segment seg, std::vector<Constraint> con)
 {
-	std::cout << "IMPLEMENT CONSTRAINT UPDATE CODE" << std::endl;
+	// Update the constraints on the correct layer
+	uint32_t lid = seg.layer;
+	Layer* lay = layer[lid];
+	lay->updateConstraint(seg, con);
 }
 
 bool Workspace::ensureReadyRender()
@@ -491,7 +519,7 @@ void test_render(std::string filename)
 	canvas = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1920,1080);
 	// TODO: maybe resolution choice?
 	Workspace* draft = new Workspace(canvas,boundary);
-	// Initialize all the constraints, operators, and brushes
+	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
 	//draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT

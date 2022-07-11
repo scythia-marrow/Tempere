@@ -17,6 +17,10 @@
 
 #ifndef render_h
 #define render_h
+// Basic types for easy id updates
+//typedef uint32_t SID;
+//typedef uint32_t LID;
+//typedef uint32_t MARK;
 // Class definitions
 class Layer;
 class Workspace;
@@ -24,7 +28,7 @@ class Workspace;
 // boolean mask or float, respectively.
 typedef struct constraint
 {
-	const std::string name;
+	std::string name;
 	uint32_t mask;
 	double dial;
 } Constraint;
@@ -49,13 +53,13 @@ namespace std
 {
 	template <> struct hash<Constraint>
 	{
-		std::size_t operator()(Operator const &n) const noexcept
+		std::size_t operator()(Constraint const &n) const noexcept
 		{
 			return std::hash<std::string>{}(n.name);
 		}
 	};
-}
-*/
+}*/
+
 
 // A valued callback!
 typedef struct callback
@@ -71,6 +75,7 @@ typedef struct callback
 typedef struct op
 {
 	const std::string name;
+	// The constraints it uses, both name and mask for different types
 	const std::map<std::string, uint32_t> cons;
 	std::function<Callback(Workspace*,struct op)> layout;
 } Operator;
@@ -108,7 +113,7 @@ typedef struct brush
 	const std::string name;
 	// The prescidence of the brush
 	double priority;
-	// The constraints it uses
+	// The constraints it uses, both name and mask for different types
 	const std::map<std::string, uint32_t> cons;
 	// The actual drawing function
 	std::function<Callback(Workspace*, struct segment, struct brush)> draw;
@@ -236,6 +241,8 @@ class Layer
 		Layer(std::vector<Vertex>);
 		bool tempere(std::vector<Vertex> boundary);
 		std::vector<uint32_t> geom(Segment);
+		// Set constraint
+		void updateConstraint(Segment, std::vector<Constraint>);
 		// Get all uncached segments
 		std::vector<Segment> unmappedSegment(
 			Workspace*,
@@ -276,6 +283,7 @@ class Workspace
 	// The brushes that consume constraints to produce art!
 	std::vector<Brush> brush;
 	// A single layout step
+	bool ensureReadyLayout();
 	double layoutStep(std::vector<double> zipfs);
 	// A single draw step
 	std::vector<Callback> drawSegment(Segment s, std::vector<double> zipf);
@@ -284,6 +292,8 @@ class Workspace
 	uint32_t bounceLayer(uint32_t, std::vector<Vertex> boundary);
 	// Function Utilities
 	bool ensureReadyRender();
+	std::map<Operator,std::map<uint32_t,uint32_t>> op_internal;
+	std::map<Brush,std::map<uint32_t,uint32_t>> br_internal;
 	public:
 		// Initializer for the workspace
 		Workspace();

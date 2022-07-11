@@ -9,6 +9,9 @@
 #include "render.h"
 #include "operators.h"
 
+// DEBUG
+#include <iostream>
+
 int decide_symmetry(Segment s, Operator op)
 {
 	// Decide upon a symmetry
@@ -18,11 +21,9 @@ int decide_symmetry(Segment s, Operator op)
 	return int(sym * 8);
 }
 
-Segment max_segment(Workspace* ws, Operator op)
+std::vector<Segment> cut_mark_symmetry(Workspace* ws, Operator op)
 {
-	// Find the largest segment (by perimeter)
-	double max_perim = 0.0;
-	Segment* max_seg = new Segment;
+	std::vector<Segment> ret;
 	for(auto s : ws->cut())
 	{
 		// Check if segment is marked
@@ -30,10 +31,23 @@ Segment max_segment(Workspace* ws, Operator op)
 		if(mark == 1) { continue; }
 		// Check if segment is complex enough
 		if(decide_symmetry(s, op) < 2) { continue; }
+		ret.push_back(s);
+	}
+	return ret;
+}
+
+Segment max_segment(std::vector<Segment> segment)
+{
+	assert(segment.size() > 0);
+	// Find the largest segment (by perimeter)
+	double max_perim = 0.0;
+	Segment* max_seg = NULL;
+	for(auto s : segment)
+	{
 		// Otherwise calculate the preim
 		std::vector<Vertex> bound = s.boundary;
 		double perim = perimeter(bound);
-		if(perim >= max_perim)
+		if(max_seg == NULL || perim >= max_perim)
 		{
 			max_perim = perim;
 			max_seg = new Segment{s};
@@ -262,6 +276,7 @@ void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 	
 	// Create new segments and boundaries
 	std::vector<Segment> shards;
+	std::cout << "N IS " << N << std::endl;
 	for(int h = 0; h < N; h++)
 	{
 		// IF WE CANT FIND EDGES TODO: BUGFIX!
@@ -283,8 +298,14 @@ void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 Callback symmetry(Workspace* ws, Operator op)
 {
 	// Find the usable segment with maximum perimeter
-	Segment max_seg = max_segment(ws, op);
-	bool usable = true;
+	std::vector<Segment> segCand = cut_mark_symmetry(ws, op);
+	bool usable = false;
+	Segment* max_seg = NULL;
+	if(segCand.size() > 0)
+	{
+		max_seg = new Segment{max_segment(segCand)};
+		usable = true;
+	}
 	// Parameters for the callback
 	//bool usable = N < 2 ? false : true; // Cannot break into <2 pieces
 	double match = (1.0 / log(1.0 + ws->cut().size())); // TODO: make this smarter
@@ -299,9 +320,9 @@ Callback symmetry(Workspace* ws, Operator op)
 		{
 			printf("SYMMETRY...\n");
 			// If we proceed, mark this segment as used
-			ws->op_cache[op][max_seg] = 1;
-			int N = decide_symmetry(max_seg, op);
-			symmetrylambda(ws, op, max_seg, N);
+			ws->op_cache[op][*max_seg] = 1;
+			int N = decide_symmetry(*max_seg, op);
+			symmetrylambda(ws, op, *max_seg, N);
 		}
 	};
 
