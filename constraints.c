@@ -1,4 +1,5 @@
 // C++ imports
+#include <stdexcept>
 #include <vector>
 #include <map>
 

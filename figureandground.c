@@ -2,6 +2,7 @@
 #include <math.h>
 
 // C++ imports
+#include <stdexcept>
 #include <vector>
 #include <map>
 

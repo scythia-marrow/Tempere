@@ -36,6 +36,9 @@ bool eq(Vertex, Vertex);
 bool eq(Vertex, Vertex, double);
 // Edge ops
 double arclen(Edge);
+// Polygon thunks
+std::vector<Edge> edgeThunk(Polygon);
+Polygon polygonThunk(std::vector<Edge>);
 // Polygon Measures
 double perimeter(Polygon);
 double signed_area(Polygon);
@@ -46,6 +49,8 @@ Vertex centroid(Polygon);
 Vertex nearest_point(Vertex, std::vector<Vertex>);
 Vertex furthest_point(Vertex, std::vector<Vertex>);
 // Intersections
+Vertex intersect_ray_line(Vertex origin, Vector dir, Edge e);
+// TODO: remove, outdated
 Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2);
 std::vector<Vertex> intersect_ray_poly(Vertex, Vector, Polygon);
 Vertex intersect_edge_edge(Edge,Edge);

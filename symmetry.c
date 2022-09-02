@@ -6,6 +6,7 @@
 #include <map>
 
 // module imports
+#include "geom.h"
 #include "render.h"
 #include "operators.h"
 
@@ -263,6 +264,40 @@ std::vector<Vertex> vertex_chain(
 	return chain;
 }
 
+std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
+{
+	// Create a direction vector in an even circle
+	double phi = (2.0 * M_PI) / N;
+	std::vector<Vector> direction;
+	for(int i = 0; i < N; i++)
+	{
+		Vector dir {(double)sin(phi*i), (double)cos(phi*i)};
+		direction.push_back(dir);
+	}
+	// For each directon find radial intersections
+	std::vector<Edge> ret;
+	for(auto dir : direction)
+	{
+		// TODO: fix convex / complex case
+		int count = 0;
+		for(auto e : edgeThunk(max_seg.boundary))
+		{
+			Vertex inter = intersect_ray_line(mid, dir, e);
+			if(!eq(mid,inter))
+			{
+				std::cout << mid.x << ", " << mid.y;
+				std::cout << " <--> "<< inter.x << ", " << inter.y;
+				std::cout << "EQ: " << eq(mid,inter);
+				std::cout << std::endl;
+				ret.push_back(Edge{mid,inter});
+				count++;
+			}
+		}
+		if(count > 1) { std::cout << "ADD COMPLEX CASE!" << std::endl; }
+	}
+	return ret;
+}
+
 void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 {
 	uint32_t foreground = max_seg.layer + 1; // Move forward
@@ -273,6 +308,15 @@ void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 	std::map<int,std::vector<struct edge>> edge =
 		find_edge(max_seg, mid, N);
 
+	// Create a set of N radial lines that end at intersection points
+	std::vector<Edge> lines = radial_segments(max_seg, mid, N);
+
+	std::cout << "LINES" << std::endl;
+	for(auto e : lines)
+	{
+		std::cout << e.head.x << ", " << e.head.y << " <--> ";
+		std::cout << e.tail.x << ", " << e.tail.y << std::endl;
+	}
 	
 	// Create new segments and boundaries
 	std::vector<Segment> shards;

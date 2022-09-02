@@ -33,8 +33,8 @@ bool eq(Vertex a, Vertex b)
 
 bool eq(Vertex a, Vertex b, double eps)
 {
-	bool eqx = ((a.x - b.x) < eps) ? a.x > b.x : ((b.x - a.x) < eps);
-	bool eqy = ((a.y - b.y) < eps) ? a.y > b.y : ((b.y - a.y) < eps);
+	bool eqx = a.x > b.x ? ((a.x - b.x) < eps) : ((b.x - a.x) < eps);
+	bool eqy = a.y > b.y ? ((a.y - b.y) < eps) : ((b.y - a.y) < eps);
 	return eqx && eqy;
 }
 
@@ -66,58 +66,75 @@ double arclen(Edge e)
 	return magnitude(vec(e.head,e.tail));
 }
 
-double perimeter(std::vector<Vertex> vertexes)
+std::vector<Edge> edgeThunk(Polygon boundary)
 {
-	//printf("Vertexes: %i", vertexes.size());
-	if(vertexes.size() < 2) { return 0.0; }
-	double perim = arclen((Edge){vertexes[0], vertexes[1]});
-	perim += arclen((Edge){vertexes[vertexes.size() - 1], vertexes[0]});
-	for(unsigned int v = 1; v < vertexes.size() - 1; v++)
+	std::vector<Edge> ret;
+	for(int h = 0; h < boundary.size(); h++)
 	{
-		perim += arclen((Edge){vertexes[v], vertexes[v + 1]});
+		int t = (h + boundary.size() + 1) % boundary.size();
+		ret.push_back(Edge{boundary[h],boundary[t]});
 	}
-	return perim;
+	return ret;
 }
 
-double signed_area(std::vector<Vertex> point)
+Polygon polygonThunk(std::vector<Edge> edge)
+{
+	Polygon ret;
+	for(auto e : edge) { ret.push_back(e.head); }
+	return ret;
+}
+
+double perimeter(Polygon poly)
+{
+	double perim = 0.0;
+	for(auto edge : edgeThunk(poly)) { perim += arclen(edge); }
+	return perim;
+	//double perim = arclen((Edge){vertexes[0], vertexes[1]});
+	//perim += arclen((Edge){vertexes[vertexes.size() - 1], vertexes[0]});
+	//for(unsigned int v = 1; v < vertexes.size() - 1; v++)
+	//{
+	//	perim += arclen((Edge){vertexes[v], vertexes[v + 1]});
+	//}
+	//return perim;
+}
+
+double signed_area(Polygon poly)
 {
 	double area_s = 0.0;
-	int size = point.size();
-	for(int h = 0; h < size; h++)
-	{
-		int t = (size + h + 1) % size;
-		Vertex head = point[h];
-		Vertex tail = point[t];
-		area_s += cross(head, tail);
-	}
+	for(auto e : edgeThunk(poly)) { area_s += cross(e.head,e.tail); }
 	return area_s / 2.0;
+	//double area_s = 0.0;
+	//int size = point.size();
+	//for(int h = 0; h < size; h++)
+	//{
+	//	int t = (size + h + 1) % size;
+	//	Vertex head = point[h];
+	//	Vertex tail = point[t];
+	//	area_s += cross(head, tail);
+	//}
+	//return area_s / 2.0;
 }
 
-Vertex midpoint(std::vector<Vertex> point)
+Vertex midpoint(std::vector<Vertex> cloud)
 {
-	int size = point.size();
 	Vertex vec {0.0, 0.0};
-	for(auto v : point)
+	for(auto point : cloud)
 	{
-		vec = add(vec, v);
+		vec = add(vec, point);
 	}
-	vec = scale(vec, (1.0 / size));
+	vec = scale(vec, (1.0 / cloud.size()));
 	return vec;
 }
 
-Vertex centroid(std::vector<Vertex> point)
+Vertex centroid(Polygon poly)
 {
 	Vertex centroid {0.0 , 0.0};
-	int size = point.size();
-	double area_s = signed_area(point);
-	for(int h = 0; h < size; h++)
+	double area_s = signed_area(poly);
+	for(auto e : edgeThunk(poly))
 	{
-		int t = (size + h + 1) % size;
-		Vertex head = point[h];
-		Vertex tail = point[t];
-		double a = cross(head, tail);
-		centroid.x += (head.x + tail.x) * a;
-		centroid.y += (head.y + tail.y) * a;
+		double a = cross(e.head, e.tail);
+		centroid.x += (e.head.x + e.tail.x) * a;
+		centroid.y += (e.head.y + e.tail.y) * a;
 	}
 
 	centroid.x /= (6.0 * area_s);
@@ -127,10 +144,10 @@ Vertex centroid(std::vector<Vertex> point)
 	return centroid;
 }
 
-Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2)
+Vertex intersect_ray_line(Vertex origin, Vector dir, Edge e)
 {
-	Vector p1 = add(origin, scale(v1, -1.0));
-	Vector p2 = add(v2, scale(v1, -1.0));
+	Vector p1 = add(origin, scale(e.head, -1.0));
+	Vector p2 = add(e.tail, scale(e.head, -1.0));
 	Vector p3 {-1.0f * dir.y, dir.x};
 
 	double D = dot(p2,p3);
@@ -152,21 +169,25 @@ Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2)
 	return returner;
 }
 
+Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2)
+{
+	return intersect_ray_line(origin, dir, Edge{v1,v2});
+}
+
 std::vector<Vertex> intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
 {
 	std::vector<Vertex> ret;
-	int size = poly.size();
-	for(int h = 0; h < size; h++)
+	for(auto e : edgeThunk(poly))
 	{
-		int t = (size + h + 1) % size;
-		Vertex vrt = intersect_ray_line(o, dir, poly[h], poly[t]);
+		Vertex vrt = intersect_ray_line(o, dir, e);
+		// TODO: why is this here?
 		if(eq(vrt,o)) { continue; }
 		ret.push_back(vrt);
 	}
 	return ret;
 }
 
-Vertex nearest_point(Vertex o, std::vector<Vertex> vtx)
+Vertex nearest_point(Vertex o, Polygon vtx)
 {
 	Vertex ret = o;
 	double dis = -1.0;
@@ -178,7 +199,7 @@ Vertex nearest_point(Vertex o, std::vector<Vertex> vtx)
 	return ret;
 }
 
-Vertex furthest_point(Vertex o, std::vector<Vertex> vtx)
+Vertex furthest_point(Vertex o, Polygon vtx)
 {
 	Vertex ret = o;
 	double dis = -1.0;
@@ -190,7 +211,7 @@ Vertex furthest_point(Vertex o, std::vector<Vertex> vtx)
 	return ret;
 }
 
-uint32_t winding_number(Vertex v, std::vector<Vertex> boundary)
+uint32_t winding_number(Vertex v, Polygon poly)
 {
 	auto is_left = [](Vertex p0, Vertex h0, Vertex t0)
 	{
@@ -198,12 +219,10 @@ uint32_t winding_number(Vertex v, std::vector<Vertex> boundary)
 			- ((t0.x - p0.x) * (h0.y - p0.y)));
 	};
 	uint32_t wn = 0;
-	int size = boundary.size();
-	for(int h = 0; h < size; h++)
+	for(auto e : edgeThunk(poly))
 	{
-		int t = (size + h + 1) % size;
-		Vertex H = boundary[h];
-		Vertex T = boundary[t];
+		Vertex H = e.head;
+		Vertex T = e.tail;
 		double left = is_left(H, T, v);
 		//printf("\tIsLeft: %f\n", left);
 		//printf("\tH,T -- p: (%f,%f), (%f,%f), (%f,%f)",
