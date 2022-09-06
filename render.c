@@ -258,11 +258,41 @@ std::vector<Segment> Workspace::cut() { return segment; }
 
 void Workspace::addSegment(
 	Operator op,
-	uint32_t layer,
+	uint32_t startlayer,
 	std::vector<Vertex> bound,
 	uint32_t mark)
 {
-	std::cout << "IMPLEMENT ADD SEGMENT CODE" << std::endl;
+	// Test if the segment is fully within another using winding number
+	// If so bounce, if not tempere
+	for(auto v : bound)
+	{
+		std::cout << v.x << "," << v.y << std::endl;
+	}
+	for(auto e : edgeThunk(bound))
+	{
+		std::cout << "(" << e.head.x << "," << e.head.y << "--" << e.tail.x << "," << e.tail.y << ")" << std::endl;
+	}
+	std::cout << "STARTING LAYER" << startlayer << std::endl;
+	uint32_t layer = startlayer;
+	bool breaker = true;
+	while(breaker)
+	{
+		breaker = false;
+		for(auto seg :  segment)
+		{
+			if(seg.layer == layer && interior(bound, seg.boundary))
+			{
+				std::cout << "BOUNCED!" << std::endl;
+				layer++;
+				breaker = true;
+				break;
+			}
+		}
+	}
+	// Once the correct layer is found, do tempere
+	std::cout << "TEMPERE ON LAYER: " << layer << std::endl;
+	// Create a new layer if needed
+	std::cout << "IMPLEMENT TEMPERE CALL IN ADD SEGMENT" << std::endl;
 }
 
 void Workspace::setConstraint(Segment seg, std::vector<Constraint> con)

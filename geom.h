@@ -24,6 +24,7 @@ typedef std::vector<Vertex> Polygon;
 
 // Vector ops
 Vector add(Vector, Vector);
+Vector sub(Vector, Vector);
 Vector scale(Vector, double);
 Vector normalize(Vector);
 Vector vec(Vertex, Vertex);
@@ -53,10 +54,11 @@ Vertex intersect_ray_line(Vertex origin, Vector dir, Edge e);
 // TODO: remove, outdated
 Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2);
 std::vector<Vertex> intersect_ray_poly(Vertex, Vector, Polygon);
-Vertex intersect_edge_edge(Edge,Edge);
 std::vector<Polygon> tempere(Polygon,Polygon);
 // Polygon Tests
 bool interior(Vertex, Polygon);
+bool interior(Polygon, Polygon);
+bool intersect_edge_edge(Edge,Edge);
 // Inclosure
 uint32_t winding_number(Vertex, Polygon);
 #endif

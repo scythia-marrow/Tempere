@@ -9,6 +9,11 @@ Vertex add(Vertex a, Vertex b)
 	return {a.x + b.x, a.y + b.y};
 }
 
+Vector sub(Vector a, Vector b)
+{
+	return {b.x - a.x, b.y - a.y};
+}
+
 Vertex scale(Vertex a, double scale)
 {
 	return {a.x * scale, a.y * scale};
@@ -187,6 +192,22 @@ std::vector<Vertex> intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
 	return ret;
 }
 
+bool intersect_edge_edge(Edge head, Edge tail)
+{
+	Vector ray = sub(head.tail, head.head);
+	Vertex inter = intersect_ray_line(head.head, ray, tail);
+	printf("Intersect (%f,%f -- %f,%f)x(%f,%f -- %f,%f) -> %f,%f %b\n",
+		head.head.x, head.head.y,
+		head.tail.x, head.tail.y,
+		tail.head.x, tail.head.y,
+		tail.tail.x, tail.tail.y,
+		inter.x, inter.y,
+		eq(inter, head.head)
+		);
+	if(eq(inter,head.head)) { return false; }
+	return magnitude(vec(head.head,inter)) < magnitude(ray);
+}
+
 Vertex nearest_point(Vertex o, Polygon vtx)
 {
 	Vertex ret = o;
@@ -211,6 +232,35 @@ Vertex furthest_point(Vertex o, Polygon vtx)
 	return ret;
 }
 
+bool interior(Vertex v, Polygon poly)
+{
+	return winding_number(v, poly) != 0;
+}
+
+bool interior(Polygon in, Polygon out)
+{
+	// Interior if all points are interior and no edge intersections
+	printf("Checking interior\n");
+	for(auto vrt : in)
+	{
+		if(!interior(vrt,out))
+		{
+			printf("(%f,%f) not interior\n",vrt.x,vrt.y);
+			printf("WN %u\n",winding_number(vrt,out));
+			return false;
+		}
+	}
+	printf("Checking edge intersection(s)\n");
+	for(auto ie : edgeThunk(in))
+	{
+		for(auto oe : edgeThunk(out))
+		{
+			if(intersect_edge_edge(ie,oe)) { return false; }
+		}
+	}
+	return true;
+}
+
 uint32_t winding_number(Vertex v, Polygon poly)
 {
 	auto is_left = [](Vertex p0, Vertex h0, Vertex t0)
@@ -224,17 +274,16 @@ uint32_t winding_number(Vertex v, Polygon poly)
 		Vertex H = e.head;
 		Vertex T = e.tail;
 		double left = is_left(H, T, v);
-		//printf("\tIsLeft: %f\n", left);
-		//printf("\tH,T -- p: (%f,%f), (%f,%f), (%f,%f)",
-		//	H.x, H.y, T.x, T.y, v.x, v.y);
-		if((H.y <= v.y) && (T.y > v.y) && (left > 0))
-		{
-			wn++;
-		}
-		if((H.y > v.y) && (T.y <= v.y) && (left < 0))
-		{
-			wn--;
-		}
+		bool wnplus = (H.y <= v.y) && (T.y >= v.y) && (left >= 0.0);
+		bool wnminus = (H.y >= v.y) && (T.y <= v.y) && (left < 0.0);
+		/*printf("WNbools %b,%b\n",wnplus,wnminus);
+		printf("\t%b,%b,%b,IsLeft: %f\n", H.y <= v.y, T.y > v.y, left);
+		printf("\tH,T -- p: (%f,%f), (%f,%f), (%f,%f)\n",
+			H.x, H.y, T.x, T.y, v.x, v.y);
+		*/
+		if(wnplus && wnminus) { printf("PLUS AND MINUS! ON EDGE!\n"); }
+		if(wnplus) { wn++; }
+		if(wnminus) { wn--; }
 	}
 	return wn;
 }

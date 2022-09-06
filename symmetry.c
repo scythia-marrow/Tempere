@@ -101,7 +101,7 @@ void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 		std::cout << e.head.x << ", " << e.head.y << " <--> ";
 		std::cout << e.tail.x << ", " << e.tail.y << std::endl;
 		// Add segment with no mark
-		ws->addSegment(op, layer, polygonThunk(std::vector{e}), 0);
+		ws->addSegment(op, layer, polygonThunk(std::vector{Edge{e.head,e.tail},Edge{e.tail,e.head}}), 0);
 	}
 }
 
