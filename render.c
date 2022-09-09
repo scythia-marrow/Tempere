@@ -89,14 +89,15 @@ std::vector<Segment> Layer::recache(
 
 std::vector<uint32_t> Layer::geom(Segment s) { return geomRel[segRev[s.sid]]; }
 
-bool Layer::tempere(std::vector<Vertex> boundary)
+void Layer::tempere(std::vector<Vertex> boundary)
 {
+	printf("Layer tempere\n");
 	// Check for coverage and intersections
 	for(auto p : shard)
 	{
+		printf("shard, whee!\n");
 		std::vector<Vertex> perimiter;
 		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
-		// Is there coverage?
 	}
 }
 
@@ -264,35 +265,32 @@ void Workspace::addSegment(
 {
 	// Test if the segment is fully within another using winding number
 	// If so bounce, if not tempere
-	for(auto v : bound)
-	{
-		std::cout << v.x << "," << v.y << std::endl;
-	}
-	for(auto e : edgeThunk(bound))
-	{
-		std::cout << "(" << e.head.x << "," << e.head.y << "--" << e.tail.x << "," << e.tail.y << ")" << std::endl;
-	}
 	std::cout << "STARTING LAYER" << startlayer << std::endl;
-	uint32_t layer = startlayer;
+	uint32_t lid = startlayer;
 	bool breaker = true;
 	while(breaker)
 	{
 		breaker = false;
 		for(auto seg :  segment)
 		{
-			if(seg.layer == layer && interior(bound, seg.boundary))
+			if(seg.layer == lid && interior(bound, seg.boundary))
 			{
 				std::cout << "BOUNCED!" << std::endl;
-				layer++;
+				lid++;
 				breaker = true;
 				break;
 			}
 		}
 	}
-	// Once the correct layer is found, do tempere
-	std::cout << "TEMPERE ON LAYER: " << layer << std::endl;
-	// Create a new layer if needed
-	std::cout << "IMPLEMENT TEMPERE CALL IN ADD SEGMENT" << std::endl;
+	// Create a new layer if needed, with just the added segment
+	if(!layer.count(lid))
+	{
+		printf("New layer with lid %i\n",lid);
+		layer[lid] = new Layer(bound);
+		return;
+	}
+	// If there is already a layer here, we must do tempere on the layer
+	layer[lid]->tempere(bound);
 }
 
 void Workspace::setConstraint(Segment seg, std::vector<Constraint> con)

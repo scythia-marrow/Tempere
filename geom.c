@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <map>
 
 #include "geom.h"
 
@@ -11,7 +12,7 @@ Vertex add(Vertex a, Vertex b)
 
 Vector sub(Vector a, Vector b)
 {
-	return {b.x - a.x, b.y - a.y};
+	return {a.x - b.x, a.y - b.y};
 }
 
 Vertex scale(Vertex a, double scale)
@@ -41,6 +42,13 @@ bool eq(Vertex a, Vertex b, double eps)
 	bool eqx = a.x > b.x ? ((a.x - b.x) < eps) : ((b.x - a.x) < eps);
 	bool eqy = a.y > b.y ? ((a.y - b.y) < eps) : ((b.y - a.y) < eps);
 	return eqx && eqy;
+}
+
+bool eq(Edge e1, Edge e2)
+{
+	if(eq(e1.head,e2.head) && eq(e1.tail, e2.tail)) { return true; }
+	if(eq(e1.tail,e2.head) && eq(e1.head, e2.tail)) { return true; }
+	return false;
 }
 
 double magnitude(Vector a)
@@ -149,34 +157,28 @@ Vertex centroid(Polygon poly)
 	return centroid;
 }
 
-Vertex intersect_ray_line(Vertex origin, Vector dir, Edge e)
+Optional<Vertex> intersect_ray_line(Vertex origin, Vector dir, Edge e)
 {
 	Vector p1 = add(origin, scale(e.head, -1.0));
 	Vector p2 = add(e.tail, scale(e.head, -1.0));
 	Vector p3 {-1.0f * dir.y, dir.x};
 
 	double D = dot(p2,p3);
-	if(abs(D) < 0.00001) { return origin; }
+	if(abs(D) < 0.00001) { return {false, Vertex{0.0,0.0}}; }
 	
 	double t1 = cross(p2, p1) / D;
 	double t2 = dot(p1,p3) / D;
 
-
-	Vertex returner;
 	if (t1 >= 0.0 && (t2 >= 0.0 && t2 <= 1.0))
 	{
-		returner = add(origin, (Vertex)scale(dir, t1));
-	} else
-	{
-		returner = origin;
+		return {true, add(origin, (Vertex)scale(dir, t1))};
 	}
-
-	return returner;
+	return {false,Vertex{0.0,0.0}};
 }
 
-Vertex intersect_ray_line(Vertex origin, Vector dir, Vertex v1, Vertex v2)
+Optional<Vertex> intersect_ray_line(Vertex o, Vector dir, Vertex v1, Vertex v2)
 {
-	return intersect_ray_line(origin, dir, Edge{v1,v2});
+	return intersect_ray_line(o, dir, Edge{v1,v2});
 }
 
 std::vector<Vertex> intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
@@ -184,28 +186,19 @@ std::vector<Vertex> intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
 	std::vector<Vertex> ret;
 	for(auto e : edgeThunk(poly))
 	{
-		Vertex vrt = intersect_ray_line(o, dir, e);
+		Optional<Vertex> vrt = intersect_ray_line(o, dir, e);
 		// TODO: why is this here?
-		if(eq(vrt,o)) { continue; }
-		ret.push_back(vrt);
+		if(!vrt.is) { continue; }
+		ret.push_back(vrt.dat);
 	}
 	return ret;
 }
 
-bool intersect_edge_edge(Edge head, Edge tail)
+Optional<Vertex> intersect_edge_edge(Edge head, Edge tail)
 {
 	Vector ray = sub(head.tail, head.head);
-	Vertex inter = intersect_ray_line(head.head, ray, tail);
-	printf("Intersect (%f,%f -- %f,%f)x(%f,%f -- %f,%f) -> %f,%f %b\n",
-		head.head.x, head.head.y,
-		head.tail.x, head.tail.y,
-		tail.head.x, tail.head.y,
-		tail.tail.x, tail.tail.y,
-		inter.x, inter.y,
-		eq(inter, head.head)
-		);
-	if(eq(inter,head.head)) { return false; }
-	return magnitude(vec(head.head,inter)) < magnitude(ray);
+	Optional<Vertex> inter = intersect_ray_line(head.head, ray, tail);
+	return inter;
 }
 
 Vertex nearest_point(Vertex o, Polygon vtx)
@@ -240,7 +233,7 @@ bool interior(Vertex v, Polygon poly)
 bool interior(Polygon in, Polygon out)
 {
 	// Interior if all points are interior and no edge intersections
-	printf("Checking interior\n");
+	printf("Checking interior...");
 	for(auto vrt : in)
 	{
 		if(!interior(vrt,out))
@@ -250,14 +243,22 @@ bool interior(Polygon in, Polygon out)
 			return false;
 		}
 	}
-	printf("Checking edge intersection(s)\n");
+	printf(" all interior.\n");
+	printf("Checking edge intersection(s)...");
 	for(auto ie : edgeThunk(in))
 	{
 		for(auto oe : edgeThunk(out))
 		{
-			if(intersect_edge_edge(ie,oe)) { return false; }
+			Optional<Vertex> interO = intersect_edge_edge(ie, oe);
+			if(interO.is)
+			{
+				Vertex inter = interO.dat;
+				printf(" found (%fx%f)\n",inter.x,inter.y);
+				return false;
+			}
 		}
 	}
+	printf(" none found\n");
 	return true;
 }
 
@@ -286,4 +287,45 @@ uint32_t winding_number(Vertex v, Polygon poly)
 		if(wnminus) { wn--; }
 	}
 	return wn;
+}
+
+Optional<uint32_t> find(Polygon poly, Vertex vert)
+{
+	for(int i = 0; i < poly.size(); i++)
+	{
+		if(eq(poly[i], vert)) { return {true,i}; }
+	}
+	return {false,0};
+}
+
+std::vector<Polygon> tempere(Polygon glass, Polygon shard)
+{
+	printf("In poly x poly tempere\n");
+	// TODO: check if the polygons are equivalent when no edges found.
+	// Store all edge intersections, associate them with edges
+	std::vector<Vertex> source;
+	std::map<uint32_t,std::vector<Edge>> edge;
+	// Find all edge intersections
+	for(auto eg : edgeThunk(glass))
+	{
+		for(auto es : edgeThunk(shard))
+		{
+			if(eq(eg,es)) { continue; }
+			Optional<Vertex> interO = intersect_edge_edge(eg, es);
+			if(!interO.is) { continue; }
+			Vertex inter = interO.dat;
+			Optional<uint32_t> idxO = find(source,inter);
+			uint32_t idx;
+			if(idxO.is) {idx = idxO.dat; }
+			else
+			{
+				idx = source.size();
+				edge[idx] = {};
+				source.push_back(inter);
+			}
+			edge[idx].push_back(eg);
+			edge[idx].push_back(es);
+		}
+	}
+	printf("Found %i edges\n",source.size());
 }

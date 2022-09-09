@@ -239,7 +239,7 @@ class Layer
 	public:
 		// Initialization
 		Layer(std::vector<Vertex>);
-		bool tempere(std::vector<Vertex> boundary);
+		void tempere(std::vector<Vertex> boundary);
 		std::vector<uint32_t> geom(Segment);
 		// Set constraint
 		void updateConstraint(Segment, std::vector<Constraint>);

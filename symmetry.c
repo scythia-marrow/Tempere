@@ -76,10 +76,10 @@ std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
 		int count = 0;
 		for(auto e : edgeThunk(max_seg.boundary))
 		{
-			Vertex inter = intersect_ray_line(mid, dir, e);
-			if(!eq(mid,inter))
+			Optional<Vertex> intO = intersect_ray_line(mid,dir,e);
+			if(intO.is)
 			{
-				ret.push_back(Edge{mid,inter});
+				ret.push_back(Edge{mid,intO.dat});
 				count++;
 			}
 		}
