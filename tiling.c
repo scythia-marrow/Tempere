@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "geom.h"
 #include "tiling.h"
+
+#include "geom.h"
+using namespace geom;
 
 //TODO: The strategy! Make a tiling of the plane, determine boundary and bulk
 //	rates of crystal formation, then simulate from a set of seeds!

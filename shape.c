@@ -11,6 +11,7 @@
 #include "render.h"
 #include "constraints.h"
 #include "geom.h"
+using namespace geom;
 
 // TODO: make weighted sums a basic utility!
 

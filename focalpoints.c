@@ -9,10 +9,12 @@
 #include <iostream>
 
 // module imports
-#include "geom.h"
 #include "render.h"
 #include "operators.h"
 #include "constraints.h"
+
+#include "geom.h"
+using namespace geom;
 
 std::set<uint32_t> fp_indexes(Workspace* ws, Operator op)
 {
@@ -206,8 +208,8 @@ void fp_segment_add(Workspace* ws, Operator op, uint32_t fp_new)
 	// Make a small new segment in center
 	Segment ns = ws->cut()[fp_new];
 	Vertex o = centroid(ns.boundary);
-	uint32_t layer = ns.layer + 1; // Move up a layer
-	ws->addSegment(op, layer, bbox(o), -1); // Add the focalpoint to the WS
+	printf("FOCAL POINT AT (%f,%f)\n",o.x,o.y);
+	ws->addSegment(op, ns.layer, bbox(o), -1); // Add the focalpoint
 	// TODO: add links!
 }
 

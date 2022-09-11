@@ -13,6 +13,7 @@
 #include "bitutils.h"
 #include "render.h"
 #include "geom.h"
+using namespace geom;
 
 // TODO: REMOVE
 #include <iostream>

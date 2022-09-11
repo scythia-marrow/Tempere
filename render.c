@@ -92,13 +92,17 @@ std::vector<uint32_t> Layer::geom(Segment s) { return geomRel[segRev[s.sid]]; }
 void Layer::tempere(std::vector<Vertex> boundary)
 {
 	printf("Layer tempere\n");
+	std::vector<segment> shatter;
 	// Check for coverage and intersections
 	for(auto p : shard)
 	{
-		printf("shard, whee!\n");
 		std::vector<Vertex> perimiter;
 		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
+		// Run tempere on the shard
+		auto piece = geom::tempere(perimiter, boundary);
 	}
+	// Add new shards, matching them to the closest extant one?
+	printf("Implement add shard code!\n");
 }
 
 std::vector<Segment> Layer::unmappedSegment(

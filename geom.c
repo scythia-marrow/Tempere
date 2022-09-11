@@ -1,62 +1,66 @@
+// C imports
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+
+// C++ imports
 #include <map>
 
 #include "geom.h"
+using namespace geom;
 
-Vertex add(Vertex a, Vertex b)
+Vertex geom::add(Vertex a, Vertex b)
 {
 	return {a.x + b.x, a.y + b.y};
 }
 
-Vector sub(Vector a, Vector b)
+Vector geom::sub(Vector a, Vector b)
 {
 	return {a.x - b.x, a.y - b.y};
 }
 
-Vertex scale(Vertex a, double scale)
+Vertex geom::scale(Vertex a, double scale)
 {
 	return {a.x * scale, a.y * scale};
 }
 
-Vertex normalize(Vertex a)
+Vertex geom::normalize(Vertex a)
 {
 	Vertex origin {0.0, 0.0};
 	double len = arclen((Edge){origin, a});
 	return scale(a, 1.0 / len);
 }
 
-Vector vec(Vertex a, Vertex b)
+Vector geom::vec(Vertex a, Vertex b)
 {
 	return {b.x - a.x, b.y - a.y};
 }
 
-bool eq(Vertex a, Vertex b)
+bool geom::eq(Vertex a, Vertex b)
 {
 	return eq(a,b,0.01);
 }
 
-bool eq(Vertex a, Vertex b, double eps)
+bool geom::eq(Vertex a, Vertex b, double eps)
 {
 	bool eqx = a.x > b.x ? ((a.x - b.x) < eps) : ((b.x - a.x) < eps);
 	bool eqy = a.y > b.y ? ((a.y - b.y) < eps) : ((b.y - a.y) < eps);
 	return eqx && eqy;
 }
 
-bool eq(Edge e1, Edge e2)
+bool geom::eq(Edge e1, Edge e2)
 {
 	if(eq(e1.head,e2.head) && eq(e1.tail, e2.tail)) { return true; }
 	if(eq(e1.tail,e2.head) && eq(e1.head, e2.tail)) { return true; }
 	return false;
 }
 
-double magnitude(Vector a)
+double geom::magnitude(Vector a)
 {
 	return sqrt(a.x * a.x + a.y * a.y);
 }
 
-double angle(Vector a, Vector b)
+double geom::angle(Vector a, Vector b)
 {
 	double mag_sum = magnitude(a) * magnitude(b);
 	double dot_sum = dot(a,b);
@@ -64,22 +68,22 @@ double angle(Vector a, Vector b)
 	return acos(quot);
 }
 
-double cross(Vector a, Vector b)
+double geom::cross(Vector a, Vector b)
 {
 	return a.x * b.y - a.y * b.x;
 }
 
-double dot(Vector a, Vector b)
+double geom::dot(Vector a, Vector b)
 {
 	return a.x * b.x + a.y * b.y;
 }
 
-double arclen(Edge e)
+double geom::arclen(Edge e)
 {
 	return magnitude(vec(e.head,e.tail));
 }
 
-std::vector<Edge> edgeThunk(Polygon boundary)
+std::vector<Edge> geom::edgeThunk(Polygon boundary)
 {
 	std::vector<Edge> ret;
 	for(int h = 0; h < boundary.size(); h++)
@@ -90,14 +94,14 @@ std::vector<Edge> edgeThunk(Polygon boundary)
 	return ret;
 }
 
-Polygon polygonThunk(std::vector<Edge> edge)
+Polygon geom::polygonThunk(std::vector<Edge> edge)
 {
 	Polygon ret;
 	for(auto e : edge) { ret.push_back(e.head); }
 	return ret;
 }
 
-double perimeter(Polygon poly)
+double geom::perimeter(Polygon poly)
 {
 	double perim = 0.0;
 	for(auto edge : edgeThunk(poly)) { perim += arclen(edge); }
@@ -111,7 +115,7 @@ double perimeter(Polygon poly)
 	//return perim;
 }
 
-double signed_area(Polygon poly)
+double geom::signed_area(Polygon poly)
 {
 	double area_s = 0.0;
 	for(auto e : edgeThunk(poly)) { area_s += cross(e.head,e.tail); }
@@ -128,7 +132,7 @@ double signed_area(Polygon poly)
 	//return area_s / 2.0;
 }
 
-Vertex midpoint(std::vector<Vertex> cloud)
+Vertex geom::midpoint(std::vector<Vertex> cloud)
 {
 	Vertex vec {0.0, 0.0};
 	for(auto point : cloud)
@@ -139,7 +143,7 @@ Vertex midpoint(std::vector<Vertex> cloud)
 	return vec;
 }
 
-Vertex centroid(Polygon poly)
+Vertex geom::centroid(Polygon poly)
 {
 	Vertex centroid {0.0 , 0.0};
 	double area_s = signed_area(poly);
@@ -157,7 +161,7 @@ Vertex centroid(Polygon poly)
 	return centroid;
 }
 
-Optional<Vertex> intersect_ray_line(Vertex origin, Vector dir, Edge e)
+Optional<Vertex> geom::intersect_ray_line(Vertex origin, Vector dir, Edge e)
 {
 	Vector p1 = add(origin, scale(e.head, -1.0));
 	Vector p2 = add(e.tail, scale(e.head, -1.0));
@@ -176,12 +180,14 @@ Optional<Vertex> intersect_ray_line(Vertex origin, Vector dir, Edge e)
 	return {false,Vertex{0.0,0.0}};
 }
 
-Optional<Vertex> intersect_ray_line(Vertex o, Vector dir, Vertex v1, Vertex v2)
+Optional<Vertex> geom::intersect_ray_line(
+	Vertex o, Vector dir,
+	Vertex v1, Vertex v2)
 {
 	return intersect_ray_line(o, dir, Edge{v1,v2});
 }
 
-std::vector<Vertex> intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
+std::vector<Vertex> geom::intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
 {
 	std::vector<Vertex> ret;
 	for(auto e : edgeThunk(poly))
@@ -194,14 +200,18 @@ std::vector<Vertex> intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
 	return ret;
 }
 
-Optional<Vertex> intersect_edge_edge(Edge head, Edge tail)
+Optional<Vertex> geom::intersect_edge_edge(Edge head, Edge tail)
 {
 	Vector ray = sub(head.tail, head.head);
-	Optional<Vertex> inter = intersect_ray_line(head.head, ray, tail);
-	return inter;
+	Optional<Vertex> interO = intersect_ray_line(head.head, ray, tail);
+	// Check if the intersection is within the edge
+	if(!interO.is) { return interO; }
+	Vector interRay = vec(head.head,interO.dat);
+	if(magnitude(interRay) > magnitude(ray)) { interO.is = false; }
+	return interO;
 }
 
-Vertex nearest_point(Vertex o, Polygon vtx)
+Vertex geom::nearest_point(Vertex o, Polygon vtx)
 {
 	Vertex ret = o;
 	double dis = -1.0;
@@ -213,7 +223,7 @@ Vertex nearest_point(Vertex o, Polygon vtx)
 	return ret;
 }
 
-Vertex furthest_point(Vertex o, Polygon vtx)
+Vertex geom::furthest_point(Vertex o, Polygon vtx)
 {
 	Vertex ret = o;
 	double dis = -1.0;
@@ -225,12 +235,13 @@ Vertex furthest_point(Vertex o, Polygon vtx)
 	return ret;
 }
 
-bool interior(Vertex v, Polygon poly)
+bool geom::interior(Vertex v, Polygon poly)
 {
-	return winding_number(v, poly) != 0;
+	bool ret = winding_number(v, poly) != 0;
+	return ret;
 }
 
-bool interior(Polygon in, Polygon out)
+bool geom::interior(Polygon in, Polygon out)
 {
 	// Interior if all points are interior and no edge intersections
 	printf("Checking interior...");
@@ -243,7 +254,7 @@ bool interior(Polygon in, Polygon out)
 			return false;
 		}
 	}
-	printf(" all interior.\n");
+	printf(" all interior\n");
 	printf("Checking edge intersection(s)...");
 	for(auto ie : edgeThunk(in))
 	{
@@ -253,7 +264,7 @@ bool interior(Polygon in, Polygon out)
 			if(interO.is)
 			{
 				Vertex inter = interO.dat;
-				printf(" found (%fx%f)\n",inter.x,inter.y);
+				printf(" found (%fx%f)\n", inter.x,inter.y);
 				return false;
 			}
 		}
@@ -262,7 +273,7 @@ bool interior(Polygon in, Polygon out)
 	return true;
 }
 
-uint32_t winding_number(Vertex v, Polygon poly)
+uint32_t geom::winding_number(Vertex v, Polygon poly)
 {
 	auto is_left = [](Vertex p0, Vertex h0, Vertex t0)
 	{
@@ -289,7 +300,7 @@ uint32_t winding_number(Vertex v, Polygon poly)
 	return wn;
 }
 
-Optional<uint32_t> find(Polygon poly, Vertex vert)
+Optional<uint32_t> geom::find(Polygon poly, Vertex vert)
 {
 	for(int i = 0; i < poly.size(); i++)
 	{
@@ -298,7 +309,7 @@ Optional<uint32_t> find(Polygon poly, Vertex vert)
 	return {false,0};
 }
 
-std::vector<Polygon> tempere(Polygon glass, Polygon shard)
+std::vector<Polygon> geom::tempere(Polygon glass, Polygon shard)
 {
 	printf("In poly x poly tempere\n");
 	// TODO: check if the polygons are equivalent when no edges found.
@@ -328,4 +339,5 @@ std::vector<Polygon> tempere(Polygon glass, Polygon shard)
 		}
 	}
 	printf("Found %i edges\n",source.size());
+	return {};
 }

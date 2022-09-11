@@ -7,10 +7,12 @@
 #include <map>
 
 // module imports
-#include "geom.h"
 #include "render.h"
 #include "operators.h"
 #include "constraints.h"
+
+#include "geom.h"
+using namespace geom;
 
 struct dir_thunk
 {

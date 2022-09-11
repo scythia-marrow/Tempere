@@ -95,13 +95,11 @@ void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 	// Create a set of N radial lines that end at intersection points
 	std::vector<Edge> lines = radial_segments(max_seg, mid, N);
 
-	std::cout << "LINES" << std::endl;
 	for(auto e : lines)
 	{
-		std::cout << e.head.x << ", " << e.head.y << " <--> ";
-		std::cout << e.tail.x << ", " << e.tail.y << std::endl;
 		// Add segment with no mark
-		ws->addSegment(op, layer, polygonThunk(std::vector{Edge{e.head,e.tail},Edge{e.tail,e.head}}), 0);
+		std::vector<Edge> line = {Edge{e.head,e.tail},{e.tail,e.head}};
+		ws->addSegment(op, layer, polygonThunk(line), 0);
 	}
 }
 

@@ -6,6 +6,7 @@
 
 // Geometry definition(s)
 #include "geom.h"
+using namespace geom;
 
 // (Limited C++ imports) GIB STRING CLASS GCC!
 #include <string>

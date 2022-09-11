@@ -1,4 +1,5 @@
 #include "geom.h"
+using namespace geom;
 
 #ifndef tiling_h
 #define tiling_h
