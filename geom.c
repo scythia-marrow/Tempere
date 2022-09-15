@@ -314,145 +314,251 @@ Optional<uint32_t> geom::find(Polygon poly, Vertex vert)
 	return {false,0};
 }
 
-class Chainshard
+
+namespace chain
 {
-	private:
-		std::vector<Vertex> inter;
-		std::map<uint32_t,std::vector<bool>> mark;
-		std::map<uint32_t,std::vector<bool>> ori;
-		std::map<uint32_t,std::vector<Vertex>> path;
-		Optional<uint32_t> minUnmarkedSlope(uint32_t idx)
-		{
-			double min; 
-			Optional<uint32_t> minO = {false, 0};
-			for(int i = 0; i < path[idx].size(); i++)
+	class Chainshard
+	{
+		private:
+			std::vector<Vertex> inter;
+			std::map<uint32_t,std::vector<bool>> mark;
+			std::map<uint32_t,std::vector<bool>> ori;
+			std::map<uint32_t,std::vector<Vertex>> path;
+			Optional<uint32_t> minUnmarkedSlope(uint32_t);
+			void shatter(Polygon glass, Polygon shard);
+			struct ChainshardID { uint32_t inter; uint32_t path; };
+		public:
+			enum CROSS { HEAD, TAIL, SINK, NONE };
+			struct Chainret
 			{
-				if(mark[idx][i]) { continue; }
-				Vertex p = path[idx][i];
-				double S = slope(Edge{p,inter[idx]});
-				if(!minO.is || S < min)
+				Vertex path;
+				Vertex inter;
+				CROSS type;
+			};
+			Chainshard();
+			Optional<ChainshardID> find(Vertex, CROSS);
+			Optional<Chainret> nextUnmarked();
+			Chainret chainMark(Vertex, CROSS);
+			Chainshard(Polygon glass, Polygon shard)
+			{
+				shatter(glass, shard);
+			}
+	};
+
+	Optional<uint32_t> chain::Chainshard::minUnmarkedSlope(uint32_t idx)
+	{
+		double min; 
+		Optional<uint32_t> minO = {false, 0};
+		for(int i = 0; i < path[idx].size(); i++)
+		{
+			if(mark[idx][i]) { continue; }
+			Vertex p = path[idx][i];
+			double S = slope(Edge{p,inter[idx]});
+			if(!minO.is || S < min)
+			{
+				minO = {true, i};
+			}
+		}
+		return minO;
+	}
+
+	Optional<chain::Chainshard::ChainshardID>
+		chain::Chainshard::find(Vertex vrt, chain::Chainshard::CROSS P)
+	{
+		for(int i = 0; i < inter.size(); i++)
+		{
+			Optional<uint32_t> pid = geom::find(path[i],vrt);
+			if(pid.is && ori[i][pid.dat] == P)
+			{
+				return {true, {i,pid.dat}};
+			}
+		}
+		return {false,{0,0}};
+	}
+
+	Optional<chain::Chainshard::Chainret> chain::Chainshard::nextUnmarked()
+	{
+		Chainret ret;
+		for(uint32_t i = 0; i < inter.size(); i++)
+		{
+			for(auto m : mark[i])
+			{
+				bool p = ori[i][m];
+				CROSS H = CROSS::HEAD;
+				CROSS T = CROSS::TAIL;
+				CROSS chirality = ori[i][m] ? H : T;
+					if(!m)
 				{
-					minO = {true, i};
+				ret.path = path[i][m];
+					ret.inter = inter[i];
+					ret.type = chirality;
+					return {true, ret};
 				}
 			}
-			return minO;
 		}
-		void shatter(Polygon glass, Polygon shard);
-	public:
-		enum CROSS { HEAD, TAIL, SINK, NONE };
-		Chainshard(Polygon glass, Polygon shard)
+		return {false, ret};
+	}
+
+	chain::Chainshard::Chainret
+		chain::Chainshard::chainMark(
+			Vertex vrt, chain::Chainshard::CROSS chi)
+	{
+		auto idx = chain::Chainshard::find(vrt,chi);
+		Vertex zero {0.0,0.0};
+		if(!idx.is) { return {zero, zero, CROSS::NONE}; }
+		ChainshardID csid = idx.dat;
+		Vertex interV = inter[csid.inter];
+		// Mark the vertex found
+		mark[csid.inter][csid.path] = true;
+		// This is a sink if there are no unmarked left
+		Optional<uint32_t> mUMS = minUnmarkedSlope(csid.inter);
+		// On a sink return the intersection vector
+		if(!mUMS.is) { return {vrt, interV, CROSS::SINK}; }
+		// Return the correct path, indicating head or tail
+		Vertex pathV = path[csid.inter][mUMS.dat];
+		bool pr = ori[csid.inter][mUMS.dat];
+		return {pathV, interV, pr ? CROSS::HEAD : CROSS::TAIL};
+	}
+	
+	void chain::Chainshard::shatter(Polygon glass, Polygon shard)
+	{
+		printf("Found %i edges\n",inter.size());
+		// TODO: check if the polygons are equivalent when none found
+		// Store all edge intersections, associate them with edges
+		for(auto eg : edgeThunk(glass))
 		{
-			shatter(glass, shard);
-		}
-		Optional<Vertex> nextUnmarked()
-		{
-			for(uint32_t i = 0; i < inter.size(); i++)
+			for(auto es : edgeThunk(shard))
 			{
-				for(auto m : mark[i])
+				if(eq(eg,es)) { continue; }
+				Optional<Vertex> interO =
+					intersect_edge_edge(eg, es);
+				if(!interO.is) { continue; }
+				Vertex interV = interO.dat;
+				Optional<uint32_t> idxO =
+					geom::find(inter,interV);
+				uint32_t idx;
+				if(idxO.is) { idx = idxO.dat; }
+				else
 				{
-					if(!m) { return {true, inter[i]}; }
+					idx = inter.size();
+					inter.push_back(interV);
+					path[idx] = {};
+					mark[idx] = {};
+					ori[idx] = {};
+				}
+				path[idx].push_back(eg.head);
+				ori[idx].push_back(true);
+				path[idx].push_back(es.tail);
+				ori[idx].push_back(false);
+				path[idx].push_back(es.head);
+				ori[idx].push_back(true);
+				path[idx].push_back(es.tail);
+				ori[idx].push_back(false);
+				mark[idx].push_back(false);
+				mark[idx].push_back(false);
+				mark[idx].push_back(false);
+				mark[idx].push_back(false);
+			}
+		}
+	}
+
+
+	struct ChainState
+	{
+		struct Segment { Vertex inter; Polygon chain; };
+		Vertex vrt;
+		Vertex inter;
+		Chainshard::CROSS chi;
+		uint32_t pA;
+		uint32_t pB;
+		std::vector<Edge> eA;
+		std::vector<Edge> eB;
+		std::vector<Segment> seg;
+	};
+
+	Optional<ChainState> noneCase(ChainState state)
+	{
+		ChainState ret = state;
+		// Make a lambda here
+		auto poly = state.eA;
+		auto chi = state.chi;
+		bool isHead = state.chi == Chainshard::CROSS::HEAD;
+		for(int i = 0; i < poly.size(); i++)
+		{
+			uint32_t place = (state.pA+i) % poly.size();
+			Vertex diff = isHead ? poly[i].head : poly[i].tail;
+			Vertex comp = isHead ? poly[i].tail : poly[i].head;
+			if(eq(state.vrt,diff)) { return {true, ret}; }
+		}
+		return {false, ret};
+	}
+
+	ChainState initChainState(Polygon a, Polygon b)
+	{
+		ChainState ret;
+		ret.eA = edgeThunk(a);
+		ret.eB = edgeThunk(b);
+		return ret;
+	}
+
+	ChainState cleanChainState(ChainState prev, Chainshard::Chainret um)
+	{
+		Vertex vrt = um.path;
+		Vertex inter = um.inter;
+		Chainshard::CROSS chirality = um.type;
+		std::vector<ChainState::Segment> segment = 
+			{ChainState::Segment{inter,Polygon{inter}}};
+		return {vrt,inter,chirality,0,0,prev.eA,prev.eB,segment};
+	}
+
+	std::vector<Polygon> chain(Polygon a, Polygon b, Chainshard* shard)
+	{
+		// Initialize the state for the chain algorithm
+		ChainState S = initChainState(a,b);
+		std::vector<Polygon> ret;
+		Optional<Chainshard::Chainret> um = shard->nextUnmarked();
+		while(um.is)
+		{
+			S = cleanChainState(S, um.dat);
+			// Path through the polygon
+			while(S.seg.size() > 0)
+			{
+				// Start at the source, move and store loops
+				auto next = shard->chainMark(S.vrt,S.chi);
+				switch(next.type)
+				{
+					case Chainshard::CROSS::SINK:
+					// When a sink is found weave a segment
+					printf("SINK FOUND!\n");
+					return {};
+					break;
+					case Chainshard::CROSS::NONE:
+					{
+						printf("NONE FOUND!\n");
+						auto noneChange = noneCase(S);
+						S = noneChange.dat;
+					}
+					return {};
+					break;
+					case Chainshard::CROSS::HEAD:
+					printf("HEAD FOUND!\n");
+					return {};
+					break;
+					case Chainshard::CROSS::TAIL:
+					printf("TAIL FOUND!\n");
+					return {};
+					break;
 				}
 			}
-			return {false, {0.0,0.0}};
+			break;
 		}
-		std::pair<Vertex,CROSS> chain(Vertex vrt)
-		{
-			Optional<uint32_t> idx = find(inter,vrt);
-			if(!idx.is)
-			{
-				Vertex zero {0.0,0.0};
-				std::pair<Vertex,CROSS> P {zero, CROSS::NONE};
-				return P;
-			}
-			Optional<uint32_t> mUMS = minUnmarkedSlope(idx.dat);
-			if(!mUMS.is)
-			{
-				Vertex zero {0.0,0.0};
-				std::pair<Vertex,CROSS> P {zero, CROSS::SINK};
-				return P;
-			}
-			Vertex pathV = path[idx.dat][mUMS.dat];
-			if(ori[idx.dat][mUMS.dat])
-			{
-				std::pair<Vertex,CROSS> P {pathV, CROSS::HEAD};
-				return P;
-			}
-			std::pair<Vertex,CROSS> P {pathV, CROSS::TAIL};
-			return P;
-		}
+		return {};
+	}	
 };
-
-void Chainshard::shatter(Polygon glass, Polygon shard)
-{
-	printf("Found %i edges\n",inter.size());
-	// TODO: check if the polygons are equivalent when no edges found.
-	// Store all edge intersections, associate them with edges
-	for(auto eg : edgeThunk(glass))
-	{
-		for(auto es : edgeThunk(shard))
-		{
-			if(eq(eg,es)) { continue; }
-			Optional<Vertex> interO = intersect_edge_edge(eg, es);
-			if(!interO.is) { continue; }
-			Vertex interV = interO.dat;
-			Optional<uint32_t> idxO = find(inter,interV);
-			uint32_t idx;
-			if(idxO.is) { idx = idxO.dat; }
-			else
-			{
-				idx = inter.size();
-				inter.push_back(interV);
-				path[idx] = {};
-				mark[idx] = {};
-				ori[idx] = {};
-			}
-			path[idx].push_back(eg.head);
-			ori[idx].push_back(true);
-			path[idx].push_back(es.tail);
-			ori[idx].push_back(false);
-			path[idx].push_back(es.head);
-			ori[idx].push_back(true);
-			path[idx].push_back(es.tail);
-			ori[idx].push_back(false);
-			mark[idx].push_back(false);
-			mark[idx].push_back(false);
-			mark[idx].push_back(false);
-			mark[idx].push_back(false);
-		}
-	}
-}
-
-std::vector<Polygon> chain(Polygon a, Polygon b, Chainshard* shard)
-{
-	Optional<Vertex> unmarked = shard->nextUnmarked();
-	while(unmarked.is)
-	{
-		Vertex vrt = unmarked.dat;
-		// Start at the source, then move and store all loops
-		std::pair<Vertex, Chainshard::CROSS> next = shard->chain(vrt);
-		switch(next.second)
-		{
-			case Chainshard::CROSS::SINK:
-			printf("SINK FOUND!\n");
-			break;
-			case Chainshard::CROSS::NONE:
-			printf("NONE FOUND!\n");
-			break;
-			case Chainshard::CROSS::HEAD:
-			printf("HEAD FOUND!\n");
-			break;
-			case Chainshard::CROSS::TAIL:
-			printf("TAIL FOUND!\n");
-			break;
-		}
-		break;
-	}
-	return {};
-}
 
 std::vector<Polygon> geom::tempere(Polygon glass, Polygon frac)
 {
 	printf("In poly x poly tempere\n");
-	Chainshard* shard = new Chainshard(glass, frac);
-	return chain(glass, frac, shard);
+	chain::Chainshard* shard = new chain::Chainshard(glass, frac);
+	return chain::chain(glass, frac, shard);
 }
