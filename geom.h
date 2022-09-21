@@ -4,8 +4,12 @@
 #include <cstdint>
 #include <vector>
 
+// Module imports
+#include "optional.h"
+
 #ifndef geom_h
 #define geom_h
+using opt::Optional;
 namespace geom
 {
 	typedef struct vector
@@ -23,12 +27,6 @@ namespace geom
 	} Edge;
 
 	typedef std::vector<Vertex> Polygon;
-
-	template <typename T> struct Optional
-	{
-		bool is;
-		T dat;
-	};
 
 	// Vector ops
 	Vector add(Vector, Vector);

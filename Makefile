@@ -10,7 +10,7 @@ CONSTRAINT_C=constraints.c
 CONSTRAINT_O=constraints.o
 OPERATOR_C=symmetry.c figureandground.c focalpoints.c gradient.c
 OPERATOR_O=symmetry.o figureandground.o focalpoints.o gradient.o
-RENDER_TEST=render.c geom.o $(BRUSH_O) $(CONSTRAINT_O) $(OPERATOR_O) -DTEST_RENDER
+RENDER_TEST=render.c geom.o tempere.o $(BRUSH_O) $(CONSTRAINT_O) $(OPERATOR_O) -DTEST_RENDER
 
 all:
 	$(CC) $(CFLAGS) -o runzwom zwom.c $(LDFLAGS)
@@ -18,8 +18,12 @@ tiling:
 	$(CC) $(CFLAGS) -c tiling.c $(LDFLAGS)
 crystal:
 	$(CC) $(CFLAGS) -c crystal.c $(LDFLAGS)
-geom:
-	$(CC) $(CFLAGS) -c geom.c $(LDFLAGS)
+
+tempere:
+	$(CC) $(CFLAGS) -c tempere.c $(LDFLAGS)
+
+geom: tempere
+	$(CC) $(CFLAGS) -c geom.c tempere.o $(LDFLAGS)
 
 brushes:
 	$(CC) $(CFLAGS) -c $(BRUSH_C) $(LDFLAGS)
@@ -40,7 +44,7 @@ test_crystal: tiling.o
 	./testcrystal $(ARGS)
 	rm testcrystal
 
-test_render: geom brushes operators constraints
+test_render: geom tempere brushes operators constraints
 	$(CC) $(CFLAGS) -o testrender $(RENDER_TEST) $(LDFLAGS)
 	./testrender $(ARGS)
 	rm testrender
