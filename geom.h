@@ -10,8 +10,13 @@
 #ifndef geom_h
 #define geom_h
 using opt::Optional;
+
 namespace geom
 {
+	extern double EPS;
+	double getEps();
+	void setEps(double);
+
 	typedef struct vector
 	{
 		double x;
@@ -39,6 +44,8 @@ namespace geom
 	double dot(Vector, Vector);
 	double magnitude(Vector);
 	// Basic ops
+	bool eq(double,double);
+	bool eq(double,double,double);
 	bool eq(Vertex, Vertex);
 	bool eq(Vertex, Vertex, double);
 	bool eq(Edge, Edge);
@@ -70,5 +77,6 @@ namespace geom
 	uint32_t winding_number(Vertex, Polygon);
 	// Search
 	Optional<uint32_t> find(Polygon, Vertex);
+	Optional<uint32_t> find(std::vector<Edge>, Edge);
 };
 #endif

@@ -1,0 +1,5 @@
+*.o
+testrender
+testtiling
+testcrystal
+*.png

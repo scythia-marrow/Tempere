@@ -12,6 +12,11 @@
 #include "tempere.h"
 using opt::Optional;
 
+double geom::EPS = 0.001;
+
+void geom::setEps(double eps) { EPS = eps; }
+double geom::getEps() { return EPS; }
+
 Vertex geom::add(Vertex a, Vertex b)
 {
 	return {a.x + b.x, a.y + b.y};
@@ -41,7 +46,7 @@ Vector geom::vec(Vertex a, Vertex b)
 
 bool geom::eq(Vertex a, Vertex b)
 {
-	return eq(a,b,0.01);
+	return eq(a,b,EPS);
 }
 
 bool geom::eq(Vertex a, Vertex b, double eps)
@@ -56,6 +61,17 @@ bool geom::eq(Edge e1, Edge e2)
 	if(eq(e1.head,e2.head) && eq(e1.tail, e2.tail)) { return true; }
 	if(eq(e1.tail,e2.head) && eq(e1.head, e2.tail)) { return true; }
 	return false;
+}
+
+bool geom::eq(double s1, double s2)
+{
+	return eq(s1,s2,EPS);
+}
+
+bool geom::eq(double s1, double s2, double eps)
+{
+	bool scalarequals = s1 > s2 ? ((s1 - s2) < eps) : ((s2 - s1) < eps);
+	return scalarequals;
 }
 
 double geom::magnitude(Vector a)
@@ -155,6 +171,7 @@ Vertex geom::midpoint(std::vector<Vertex> cloud)
 Vertex geom::centroid(Polygon poly)
 {
 	Vertex centroid {0.0 , 0.0};
+	if(poly.size() < 1) { return centroid; }
 	double area_s = signed_area(poly);
 	for(auto e : edgeThunk(poly))
 	{
@@ -162,6 +179,9 @@ Vertex geom::centroid(Polygon poly)
 		centroid.x += (e.head.x + e.tail.x) * a;
 		centroid.y += (e.head.y + e.tail.y) * a;
 	}
+	// If the area is zero we have a zero-size polygon, so the centroid
+	// is just the polygon midpoint TODO: check the math on this case
+	if(eq(area_s,0.0)) { return midpoint(poly); }
 
 	centroid.x /= (6.0 * area_s);
 	centroid.y /= (6.0 * area_s);
@@ -313,6 +333,15 @@ Optional<uint32_t> geom::find(Polygon poly, Vertex vert)
 	for(int i = 0; i < poly.size(); i++)
 	{
 		if(eq(poly[i], vert)) { return {true,i}; }
+	}
+	return {false,0};
+}
+
+Optional<uint32_t> geom::find(std::vector<Edge> poly, Edge edge)
+{
+	for(int i = 0; i < poly.size(); i++)
+	{
+		if(eq(poly[i], edge)) { return {true,i}; }
 	}
 	return {false,0};
 }

@@ -192,24 +192,11 @@ uint32_t fp_add(Workspace* ws, Operator op, std::set<uint32_t> fp_idx)
 
 void fp_segment_add(Workspace* ws, Operator op, uint32_t fp_new)
 {
-	// Lambda to make a small bounding box from a vertex
-	auto bbox = [](Vertex v) -> std::vector<Vertex>
-	{
-		std::vector<Vertex> ret = 
-		{
-			{v.x+0.01,v.y-0.01},
-			{v.x-0.01,v.y-0.01},
-			{v.x-0.01,v.y+0.01},
-			{v.x+0.01,v.y+0.01}
-		};
-		return ret;
-	};
-
-	// Make a small new segment in center
+	// Make a new degenerate segment in the center
 	Segment ns = ws->cut()[fp_new];
 	Vertex o = centroid(ns.boundary);
 	printf("FOCAL POINT AT (%f,%f)\n",o.x,o.y);
-	ws->addSegment(op, ns.layer, bbox(o), -1); // Add the focalpoint
+	ws->addSegment(op, ns.layer,Polygon{o}, -1); // Add the focalpoint
 	// TODO: add links!
 }
 

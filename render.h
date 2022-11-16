@@ -235,6 +235,9 @@ class Layer
 	// Geometry relationships (purely local)
 	std::map<uint32_t,std::vector<uint32_t>> geomRel;
 	std::map<uint32_t,std::vector<Constraint>> constraint;
+	// Add a segment (purely local)
+	void addsegment(std::vector<segment>,Polygon);
+	uint32_t ensureVid(Vertex);
 	// A single cache response
 	Segment cache(Workspace*, uint32_t gid, uint32_t sid, uint32_t height);
 	public:

@@ -89,6 +89,22 @@ std::vector<Segment> Layer::recache(
 
 std::vector<uint32_t> Layer::geom(Segment s) { return geomRel[segRev[s.sid]]; }
 
+uint32_t Layer::ensureVid(Vertex vrt)
+{
+	auto found = geom::find(vertex,vrt);
+	if(found.is) { return found.dat; }
+	vertex.push_back(vrt);
+	return ensureVid(vrt);
+}
+
+void Layer::addsegment(std::vector<segment> base, Polygon poly)
+{
+	uint32_t newsid = base.size();
+	std::vector<uint32_t> id;
+	for(auto vrt : poly) { id.push_back(ensureVid(vrt)); }
+	base.push_back({newsid,id});
+}
+
 void Layer::tempere(std::vector<Vertex> boundary)
 {
 	printf("Layer tempere\n");
@@ -100,9 +116,14 @@ void Layer::tempere(std::vector<Vertex> boundary)
 		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
 		// Run tempere on the shard
 		auto piece = geom::tempere(perimiter, boundary);
+		// TODO: match shards together, update shards
+		// Store the pieces produced in new shards
+		for(auto poly : piece) { addsegment(shatter, poly); }
 	}
-	// Add new shards, matching them to the closest extant one?
-	printf("Implement add shard code!\n");
+	// For now just straight replace all shards with the new stuff
+	assert(shard.size() < shatter.size());
+	printf("Shattered %d into %d segments\n",shard.size(),shatter.size());
+	shard = shatter;
 }
 
 std::vector<Segment> Layer::unmappedSegment(

@@ -22,7 +22,7 @@ crystal:
 tempere:
 	$(CC) $(CFLAGS) -c tempere.c $(LDFLAGS)
 
-geom: tempere
+geom: tempere.o
 	$(CC) $(CFLAGS) -c geom.c tempere.o $(LDFLAGS)
 
 brushes:
