@@ -15,7 +15,7 @@ Optional<uint32_t> edgeFind(std::vector<Edge> poly, Vertex v, uint32_t strt)
 	for(int i = 0; i < poly.size(); i++)
 	{
 		uint32_t place = (strt+i) % poly.size();
-		Edge p = poly[i];
+		Edge p = poly[place];
 		if(eq(v,p.head)) { return {true,place}; }
 	}
 	return {false,0};
@@ -74,19 +74,19 @@ Optional<ChainState> chain::interCase(ChainState S, Edge path, Vertex inter)
 	ChainState ret = S;
 	auto pA = edgeFind(S.eA,S.vrt,S.pA);
 	auto pB = edgeFind(S.eB,S.vrt,S.pB);
-	printf("HEAD: %f%f\n",path.head.x,path.head.y);
-	printf("TAIL: %f%f\n",path.tail.x,path.tail.y);
 	printf("S INTER:  %f%f\n",S.inter.x,S.inter.y);
 	printf("N INTER:  %f%f\n",inter.x,inter.y);
+	printf("P HEAD: %f%f\n",path.head.x,path.head.y);
+	printf("P TAIL: %f%f\n",path.tail.x,path.tail.y);
 	printf("VRT: %f%f\n",S.vrt.x,S.vrt.y);
 	// Add a new segment to the chain
 	ret.seg.back().chain.push_back(S.vrt);
 	ret.seg.push_back(ChainState::Segment{inter, Polygon{}});
-	if(!eq(S.vrt,inter)) { ret.seg.back().chain.push_back(inter); }
+	// Degenerate case, move immediately
 	// Update state items to move forward
 	if(pA.is) { ret.pA = pA.dat; }
 	if(pB.is) { ret.pB = pB.dat; }
-	ret.vrt = path.tail;
+	ret.vrt = inter;
 	ret.inter = inter;
 	printSeg(ret);
 	return {true, ret};
@@ -98,17 +98,19 @@ Optional<ChainState> chain::sinkCase(ChainState state)
 	return {false, state};
 }
 
-Optional<Chainshard::ChainshardID> chain::Chainshard::find(Vertex vrt, CROSS P)
+Optional<Chainshard::ChainshardID> chain::Chainshard::findpath(Vertex vrt)
 {
 	for(int i = 0; i < inter.size(); i++)
 	{
-		// if(eq(inter[i],vrt)) { return {true,{i,0}}; }
 		for(int p = 0; p < path[i].size(); p++)
 		{
-			if(eq(vrt,path[i][p].head)) { return {true, {i,p}}; }
+			if(eq(vrt,path[i][p].head))
+			{
+				return {true, {i,p}};
+			}
 		}
 	}
-	return {false,{0,0}};
+	return {false,0};
 }
 
 Optional<Chainshard::Chainret> chain::Chainshard::nextUnmarked()
@@ -116,37 +118,35 @@ Optional<Chainshard::Chainret> chain::Chainshard::nextUnmarked()
 	Chainret ret;
 	for(uint32_t i = 0; i < inter.size(); i++)
 	{
-		for(auto m : mark[i])
+		auto mum = minUnmarkedSlope(inter[i], i);
+		if(mum.is)
 		{
-			if(!m)
-			{
-				ret.path = path[i][m];
-				ret.inter = inter[i];
-				ret.type = Chainshard::CROSS::INTER;
-				return {true, ret};
-			}
+			ret.path = path[i][mum.dat];
+			ret.inter = inter[i];
+			ret.type = Chainshard::CROSS::NONE;
+			return {true, ret};
 		}
 	}
 	return {false, ret};
 }
 
-Chainshard::Chainret chain::Chainshard::chainMark(Vertex vrt, CROSS chi)
+Chainshard::Chainret chain::Chainshard::chainMark(Vertex vrt)
 {
-	auto idx = chain::Chainshard::find(vrt,chi);
+	auto idx = chain::Chainshard::findpath(vrt);
 	Vertex zero {0.0,0.0};
-	if(!idx.is) { return {{zero,zero}, zero, Chainshard::CROSS::NONE}; }
+	if(!idx.is) { return {{zero,zero}, vrt, Chainshard::CROSS::NONE}; }
 	// Pull intersection data
-	ChainshardID csid = idx.dat;
+	Chainshard::ChainshardID csid = idx.dat;
 	Vertex interV = inter[csid.inter];
-	// Mark the intersection path
-	mark[csid.inter][csid.path] = true;
 	// This is a sink if there are no unmarked left
 	Optional<uint32_t> mUMS = minUnmarkedSlope(vrt, csid.inter);
 	// On a sink return the intersection vector
 	if(!mUMS.is) { return {{zero,zero}, interV, Chainshard::CROSS::SINK}; }
-	// Otherwise return the next path we wish to follow
+	// Otherwise return the next path we wish to follow, and mark it
 	Edge pathE = path[csid.inter][mUMS.dat];
-	return {pathE, interV, Chainshard::CROSS::INTER};
+	mark[csid.inter][mUMS.dat] = true;
+	// If the intersection is not degenerate
+	return { pathE, interV, Chainshard::CROSS::INTER };
 }
 	
 void chain::Chainshard::shatter(Polygon glass, Polygon shard)
@@ -211,7 +211,7 @@ Optional<uint32_t> chain::Chainshard::minUnmarkedSlope(Vertex v, uint32_t idx)
 		printf("Mark %f%f %s\n",path[idx][i].head.x,path[idx][i].head.y,mark[idx][i] ? "true" : "false");
 		if(mark[idx][i]) { continue; }
 		Edge p = path[idx][i];
-		double S = slope(Edge{v,p.head});
+		double S = geom::dirangle(p.head,v);
 		if(!minO.is || S < min)
 		{
 			minO = {true, i};
@@ -275,7 +275,7 @@ std::vector<Polygon> chain::chain(Polygon a, Polygon b, Chainshard* shard)
 		while(S.seg.size() > 0 && thing < 10)
 		{
 			// Start at the source, move and store loops
-			auto next = shard->chainMark(S.vrt,S.chi);
+			auto next = shard->chainMark(S.vrt);
 			// Update the state with different actions
 			auto stateChange = stateDel(S,next);
 			// If there is no change there is an error

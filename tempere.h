@@ -40,14 +40,14 @@ namespace chain
 			};
 			Chainshard();
 			Optional<Chainret> nextUnmarked();
-			Chainret chainMark(Vertex, CROSS);
+			Chainret chainMark(Vertex);
 			Chainshard(Polygon glass, Polygon shard)
 			{
 				shatter(glass, shard);
 			}
 		private:
 			struct ChainshardID { uint32_t inter; uint32_t path; };
-			Optional<ChainshardID> find(Vertex, CROSS);
+			Optional<struct ChainshardID> findpath(Vertex inter);
 	};
 
 	struct ChainState

@@ -40,6 +40,7 @@ namespace geom
 	Vector normalize(Vector);
 	Vector vec(Vertex, Vertex);
 	double angle(Vector, Vector);
+	double dirangle(Vector,Vector);
 	double cross(Vector, Vector);
 	double dot(Vector, Vector);
 	double magnitude(Vector);
@@ -75,6 +76,8 @@ namespace geom
 	bool interior(Polygon, Polygon);
 	// Inclosure
 	uint32_t winding_number(Vertex, Polygon);
+	// Projection
+	Vector proj(Vector,Vector);
 	// Search
 	Optional<uint32_t> find(Polygon, Vertex);
 	Optional<uint32_t> find(std::vector<Edge>, Edge);

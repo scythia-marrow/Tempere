@@ -93,6 +93,20 @@ double geom::angle(Vector a, Vector b)
 	return acos(quot);
 }
 
+double geom::dirangle(Vector a, Vector b)
+{
+	// Degenerate case
+	if(eq(a,b)) { return 0.0; }
+	// Get the Z cross product component
+	double z = (a.x * b.y) - (a.y * b.x);
+	return z > 0.0 ? angle(a,b) : angle(a,b) + M_PI;
+}
+
+Vector geom::proj(Vector base, Vector vec)
+{
+	return scale(base, dot(base,vec) / magnitude(vec));
+}
+
 double geom::cross(Vector a, Vector b)
 {
 	return a.x * b.y - a.y * b.x;
