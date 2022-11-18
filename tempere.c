@@ -72,22 +72,21 @@ Optional<ChainState> chain::noneCase(ChainState state)
 Optional<ChainState> chain::interCase(ChainState S, Edge path, Vertex inter)
 {
 	ChainState ret = S;
-	auto pA = edgeFind(S.eA,S.vrt,S.pA);
-	auto pB = edgeFind(S.eB,S.vrt,S.pB);
-	printf("S INTER:  %f%f\n",S.inter.x,S.inter.y);
-	printf("N INTER:  %f%f\n",inter.x,inter.y);
-	printf("P HEAD: %f%f\n",path.head.x,path.head.y);
-	printf("P TAIL: %f%f\n",path.tail.x,path.tail.y);
-	printf("VRT: %f%f\n",S.vrt.x,S.vrt.y);
 	// Add a new segment to the chain
-	ret.seg.back().chain.push_back(S.vrt);
+	ret.seg.back().chain.push_back(path.head);
 	ret.seg.push_back(ChainState::Segment{inter, Polygon{}});
-	// Degenerate case, move immediately
-	// Update state items to move forward
+	// Now, add the intersection if it is distinct from the head
+	if(!eq(path.head,inter)) { ret.seg.back().chain.push_back(inter); }
+	// TODO: CASE. Need to check for loops here and detach them
+	// Update cache items to move forward
+	auto pA = edgeFind(S.eA,path.tail,S.pA);
+	auto pB = edgeFind(S.eB,path.tail,S.pB);
 	if(pA.is) { ret.pA = pA.dat; }
 	if(pB.is) { ret.pB = pB.dat; }
-	ret.vrt = inter;
+	// Move forward!
+	ret.vrt = path.tail;
 	ret.inter = inter;
+	// TODO: REMOVE. Debug print
 	printSeg(ret);
 	return {true, ret};
 }
@@ -124,6 +123,8 @@ Optional<Chainshard::Chainret> chain::Chainshard::nextUnmarked()
 			ret.path = path[i][mum.dat];
 			ret.inter = inter[i];
 			ret.type = Chainshard::CROSS::NONE;
+			// Mark the thingy now TODO: mark on use
+			mark[i][mum.dat] = true;
 			return {true, ret};
 		}
 	}
@@ -138,15 +139,16 @@ Chainshard::Chainret chain::Chainshard::chainMark(Vertex vrt)
 	// Pull intersection data
 	Chainshard::ChainshardID csid = idx.dat;
 	Vertex interV = inter[csid.inter];
+	Edge inPath = path[csid.inter][csid.path];
 	// This is a sink if there are no unmarked left
 	Optional<uint32_t> mUMS = minUnmarkedSlope(vrt, csid.inter);
 	// On a sink return the intersection vector
 	if(!mUMS.is) { return {{zero,zero}, interV, Chainshard::CROSS::SINK}; }
 	// Otherwise return the next path we wish to follow, and mark it
-	Edge pathE = path[csid.inter][mUMS.dat];
+	Edge outPath = path[csid.inter][mUMS.dat];
 	mark[csid.inter][mUMS.dat] = true;
 	// If the intersection is not degenerate
-	return { pathE, interV, Chainshard::CROSS::INTER };
+	return { {inPath.head,outPath.tail}, interV, Chainshard::CROSS::INTER };
 }
 	
 void chain::Chainshard::shatter(Polygon glass, Polygon shard)
@@ -218,6 +220,10 @@ Optional<uint32_t> chain::Chainshard::minUnmarkedSlope(Vertex v, uint32_t idx)
 			min = S;
 		}
 	}
+	printf("MINo: %s,(%f,%f) -- (%f,%f)\n",minO.is ? "true": "false",
+		path[idx][minO.dat].head.x, path[idx][minO.dat].head.y,
+		path[idx][minO.dat].tail.x, path[idx][minO.dat].tail.y
+	);
 	return minO;
 }
 
