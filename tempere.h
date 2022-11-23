@@ -64,7 +64,7 @@ namespace chain
 		std::vector<Segment> seg;
 	};
 
-	Optional<ChainState> sinkCase(ChainState);
+	Optional<ChainState> sinkCase(ChainState,Vertex);
 	Optional<ChainState> noneCase(ChainState);
 	Optional<ChainState> interCase(ChainState,Edge,Vertex);
 
@@ -72,7 +72,7 @@ namespace chain
 	ChainState initChainState(Polygon, Polygon);
 	ChainState cleanChainState(ChainState, Chainshard::Chainret);
 	Optional<ChainState> stateDel(ChainState, Chainshard::Chainret);
-	Polygon weave(ChainState next, ChainState prev);
+	std::vector<Polygon> weave(ChainState current, ChainState previous);
 	std::vector<Polygon> chain(Polygon a, Polygon b, Chainshard* shard);
 };
 #endif

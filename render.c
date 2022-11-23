@@ -97,7 +97,7 @@ uint32_t Layer::ensureVid(Vertex vrt)
 	return ensureVid(vrt);
 }
 
-void Layer::addsegment(std::vector<segment> base, Polygon poly)
+void Layer::addsegment(std::vector<segment> &base, Polygon poly)
 {
 	uint32_t newsid = base.size();
 	std::vector<uint32_t> id;
@@ -121,7 +121,7 @@ void Layer::tempere(std::vector<Vertex> boundary)
 		for(auto poly : piece) { addsegment(shatter, poly); }
 	}
 	// For now just straight replace all shards with the new stuff
-	assert(shard.size() < shatter.size());
+	assert(shard.size() <= shatter.size());
 	printf("Shattered %d into %d segments\n",shard.size(),shatter.size());
 	shard = shatter;
 }

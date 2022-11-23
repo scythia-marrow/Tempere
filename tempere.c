@@ -73,7 +73,7 @@ Optional<ChainState> chain::interCase(ChainState S, Edge path, Vertex inter)
 {
 	ChainState ret = S;
 	// Add a new segment to the chain
-	ret.seg.back().chain.push_back(path.head);
+	if(!eq(path.head,inter)) { ret.seg.back().chain.push_back(path.head); }
 	ret.seg.push_back(ChainState::Segment{inter, Polygon{}});
 	// Now, add the intersection if it is distinct from the head
 	if(!eq(path.head,inter)) { ret.seg.back().chain.push_back(inter); }
@@ -91,10 +91,19 @@ Optional<ChainState> chain::interCase(ChainState S, Edge path, Vertex inter)
 	return {true, ret};
 }
 
-// Sink case
-Optional<ChainState> chain::sinkCase(ChainState state)
-{
-	return {false, state};
+// Sink case, basically just remove loops in the chain then none case
+Optional<ChainState> chain::sinkCase(ChainState state, Vertex inter)
+{	
+	ChainState ret = state;
+	// Clean the return chain
+	ret.seg = {};
+	// Find the tail by moving through chains until a loop is found
+	for(auto seg : state.seg)
+	{
+		if(eq(seg.inter,inter)) { break; }
+		ret.seg.push_back(seg);
+	}
+	return {true, ret};
 }
 
 Optional<Chainshard::ChainshardID> chain::Chainshard::findpath(Vertex vrt)
@@ -252,19 +261,46 @@ Optional<ChainState> chain::stateDel(ChainState state, Chainshard::Chainret n)
 	{
 		case Chainshard::CROSS::SINK:
 			printf("SINK FOUND!\n");
-			return sinkCase(state);
+			return sinkCase(state, n.inter);
 		case Chainshard::CROSS::NONE:
 			printf("NONE FOUND\n");
 			return noneCase(state);
 		case Chainshard::CROSS::INTER:
 			printf("INTER FOUND\n");
 			return interCase(state,n.path,n.inter);
+		default:
+			printf("DEFAULT CASE\n");
+			return noneCase(state);
 	}
 }
 
-Polygon chain::weave(ChainState next, ChainState prev)
+std::vector<Polygon> chain::weave(ChainState current, ChainState previous)
 {
-	return {};
+	std::vector<Polygon> ret {};
+	// Set up the segment chain we move along
+	Vertex vertex = previous.vrt;
+	Vertex inter = previous.inter;
+	std::vector<chain::ChainState::Segment> segV = previous.seg;
+	// Need to store current vrt here so we don't change the previous state
+	if(!eq(inter,vertex)) { segV.back().chain.push_back(vertex); }
+	// Move along the new segment chain
+	for(int i = previous.seg.size(); i > current.seg.size(); i--)
+	{
+		chain::ChainState::Segment seg = segV[i-1];
+		double area = geom::signed_area(seg.chain);
+		printf("AREA %f\n",area);
+		// If we are in a loop start another polygon TODO: TEST. degen
+		bool vrteq = geom::eq(seg.inter,inter);
+		bool polydegen = geom::eq(area,0.0);
+		if(vrteq && !polydegen)
+		{
+			printf("NESTED LOOPS DEGEN CASE!\n");
+			ret.push_back({});
+		}
+		ret.back().push_back(inter);
+		for(auto link : seg.chain) { ret.back().push_back(link); }
+	}
+	return ret;
 }
 
 std::vector<Polygon> chain::chain(Polygon a, Polygon b, Chainshard* shard)
@@ -284,19 +320,21 @@ std::vector<Polygon> chain::chain(Polygon a, Polygon b, Chainshard* shard)
 			auto next = shard->chainMark(S.vrt);
 			// Update the state with different actions
 			auto stateChange = stateDel(S,next);
-			// If there is no change there is an error
-			if(!stateChange.is) { return {}; }
 			// If there is a sink, weave a polygon
 			if(next.type == Chainshard::CROSS::SINK)
 			{
 				auto poly = weave(stateChange.dat, S);
-				ret.push_back(poly);
+				for(auto p : poly) { ret.push_back(p); }
+				// Break on a connected segment
+				if(stateChange.dat.seg.size() < 1) { break; }
 			}
+			// If there is no change there is an error
+			if(!stateChange.is) { return {}; }
 			// Update the state
 			S = stateChange.dat;
 			thing++;
 		}
-		break;
+		um = shard->nextUnmarked();
 	}
-	return {};
+	return ret;
 }
