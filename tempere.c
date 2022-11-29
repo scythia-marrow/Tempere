@@ -49,7 +49,23 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 		{
 			if(eq(g,s)) { continue; }
 			auto gs = geom::intersect_edge_edge(g,s);
-			if(gs.is) { inter.push_back(ensureID(gs.dat)); }
+			if(gs.is)
+			{
+				uint32_t interID = ensureID(gs.dat);
+				uint32_t shID = ensureID(s.head);
+				uint32_t stID = ensureID(s.tail);
+				inter.push_back(interID);
+				if(shID == interID || stID == interID)
+				{
+					addlambda(shID,stID);
+					addlambda(stID,shID);
+				}
+				else
+				{
+					addlambda(ensureID(s.head),interID);
+					addlambda(ensureID(s.tail),interID);
+				}
+			}
 		}
 		std::sort(inter.begin(),inter.end(),keylambda);
 		// Add the edge head and tail to the intersection nodes
@@ -79,7 +95,7 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 
 Optional<ChainState> chain::stateDel(ChainState S, std::vector<Vertex> cand)
 {
-	printf("STATE DEL!\n\t");
+	printf("STATE DEL! (%f,%f) -- (%f,%f)\n\t",S.previous.dat.x,S.previous.dat.y,S.current.x,S.current.y);
 	printf("S\n\t\t");
 	for(auto n : S.path)
 	{
@@ -93,34 +109,42 @@ Optional<ChainState> chain::stateDel(ChainState S, std::vector<Vertex> cand)
 	printf("\n");
 	// Just copy for now
 	ChainState ret = S;
-	// Find next unmarked vertex
+	// Find next novel vertex
+	Optional<Vertex> prev = S.previous;
 	Optional<Vertex> next = {false, {0.0,0.0}};
 	for(auto v : cand)
 	{
-		if(!geom::find(S.mark,v).is) { next = {true, v}; }
+		if(!geom::find(ret.mark,v).is)
+		{
+			// Do not move backwards lol
+			if(prev.is && geom::eq(prev.dat,v)) { continue; }
+			next = {true, v};
+			// Take the smallest next vertex
+			break;
+		}
 	}
 	// If there is no next unmarked set an error
 	if(!next.is) { ret.action = chain::ChainState::ERROR; }
 	// Check if a loop has occured, need full edge not just current vrt
-	// TODO: START HERE. Don't stop on 1d loops
 	uint32_t pathlen = S.path.size();
-	auto tid = geom::find(S.path,next.dat);
-	if(tid.is && S.previous.is)
+	std::vector<Vertex> P = {};
+	for(int tid = (pathlen-1); tid >= 0; tid--)
 	{
-		uint32_t hid = (pathlen + tid.dat - 1) % pathlen;
-		printf("PL TID HID %d %d %d\n",pathlen,tid.dat,hid);
-		if(geom::eq(S.path[hid],S.previous.dat))
+		if(!S.previous.is) { break; }
+		uint32_t hid = (pathlen + tid - 1) % pathlen;
+		P.push_back(S.path[tid]);
+		if(eq(S.current,S.path[tid]) && eq(S.previous.dat,S.path[hid]))
 		{
+			if(geom::eq(geom::signed_area(P),0.0)) { continue; }
 			ret.action = chain::ChainState::DONE;
+			ret.path = P;
+			return {true, ret};
 		}
 	}
-	// Otherwise move along the path
-	else
-	{
-		ret.path.push_back(S.current);
-		ret.previous = {true, S.current};
-		ret.current = next.dat;
-	}
+	// By default move along the path
+	ret.path.push_back(S.current);
+	ret.previous = {true, S.current};
+	ret.current = next.dat;
 	return {true, ret};
 }
 
@@ -131,7 +155,8 @@ Polygon chain::weave(const chain::ChainState current)
 	{
 		printf("(%f,%f) --",n.x,n.y);
 	}
-	Polygon ret = {};
+	// TODO: better thingy than this
+	Polygon ret = current.path;
 	return ret;
 }
 
@@ -164,7 +189,7 @@ const std::vector<Vertex> chain::Chainshard::sortedPath(Vertex vertex)
 	// A sortation by raw angles
 	auto sortlambda = [=](Vertex a, Vertex b) -> bool
 	{
-		return anglelambda(a) < anglelambda(b);
+		return anglelambda(a) > anglelambda(b);
 	};
 	// Sort the return vector
 	std::sort(ret.begin(),ret.end(),sortlambda);
@@ -188,17 +213,24 @@ const std::vector<Vertex> chain::Chainshard::sortedPath(Edge edge)
 	// A sortation by angle lambda
 	auto sortlambda = [=](Vertex a, Vertex b) -> bool
 	{
-		return anglelambda(a) < anglelambda(b);
+		return anglelambda(a) > anglelambda(b);
 	};
 	// Sort the return vector
 	std::sort(ret.begin(),ret.end(),sortlambda);
+	// Print it
+	if(ret.size() > 2)
+	{
+		printf("SORTED (%f,%f)--(%f,%f)\n\t",edge.head.x,edge.head.y,edge.tail.x,edge.tail.y);
+		for(auto x : ret) { printf("%f%f -- ",x.x,x.y); }
+		printf("\n");
+	}
 	return ret;
 }
 
 const std::vector<Vertex> chain::Chainshard::sortedPath(
 	Vertex v, Optional<Vertex> o)
 {
-	if(o.is) { return sortedPath(Edge{v,o.dat}); }
+	if(o.is) { return sortedPath(Edge{o.dat,v}); }
 	return sortedPath(v);
 }
 
@@ -228,7 +260,11 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 			S = stateopt.dat;
 		}
 		// At the end do cleanup
-		if(S.action == ChainState::ERROR) { return ret; }
+		if(S.action == ChainState::ERROR)
+		{
+			printf("CHAIN ERROR!\n");
+			return ret;
+		}
 		Polygon newpoly = weave(S);
 		ret.push_back(newpoly);
 		// Create new marks for each vertex with no free connections
@@ -238,8 +274,6 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 			Optional<Vertex> num = nextUnmarked(connect,newpoly);
 			if(!num.is) { mark.push_back(v); }
 		}
-		// TODO: remove
-		break;
 	}
 	return ret;
 }
