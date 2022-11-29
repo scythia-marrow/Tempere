@@ -5,6 +5,8 @@
 //C++ imports
 #include <functional>
 #include <map>
+#include <vector>
+#include <set>
 
 // Module imports
 #include "geom.h"
@@ -23,56 +25,52 @@ namespace chain
 	class Chainshard
 	{
 		private:
-			std::vector<Vertex> inter;
-			std::map<uint32_t,uint32_t> interPlaceA;
-			std::map<uint32_t,uint32_t> interPlaceB;
-			std::map<uint32_t,std::vector<bool>> mark;
-			std::map<uint32_t,std::vector<Edge>> path;
-			Optional<uint32_t> minUnmarkedSlope(Vertex,uint32_t);
-			void shatter(Polygon glass, Polygon shard);
-		public:
-			enum CROSS { INTER, SINK, NONE };
-			struct Chainret
+			std::vector<Vertex> node;
+			struct setcomp {
+			bool operator() (const Vertex &a,const Vertex &b) const
 			{
-				Edge path;
-				Vertex inter;
-				CROSS type;
-			};
+				Vector vec = geom::vec(a,b);
+				if(geom::magnitude(vec) < geom::EPS)
+				{
+					return false;
+				}
+				return geom::magnitude(a) < geom::magnitude(b); 
+			}
+			};	
+			std::map<uint32_t,std::set<Vertex,setcomp>> graph;
+			//Optional<uint32_t> minUnmarkedSlope(uint32_t);
+			void shatter(const Polygon glass, const Polygon shard);
+			uint32_t ensureID(Vertex);
+		public:
 			Chainshard();
-			Optional<Chainret> nextUnmarked();
-			Chainret chainMark(Vertex);
+			const std::vector<Vertex> getNode();
+			// Sort a path just by angle
+			const std::vector<Vertex> sortedPath(Vertex);
+			// Sort a path by signed angle from an edge
+			const std::vector<Vertex> sortedPath(Edge);
+			// Sort a path by either, good for smoothing edge cases
+			const std::vector<Vertex> sortedPath(
+				Vertex,Optional<Vertex>);
 			Chainshard(Polygon glass, Polygon shard)
 			{
 				shatter(glass, shard);
 			}
-		private:
-			struct ChainshardID { uint32_t inter; uint32_t path; };
-			Optional<struct ChainshardID> findpath(Vertex inter);
 	};
 
 	struct ChainState
 	{
-		struct Segment { Vertex inter; Polygon chain; };
-		Vertex vrt;
-		Vertex inter;
-		Edge path;
-		Chainshard::CROSS chi;
-		uint32_t pA;
-		uint32_t pB;
-		std::vector<Edge> eA;
-		std::vector<Edge> eB;
-		std::vector<Segment> seg;
+		enum ACTION { RUN, DONE, ERROR };
+		ACTION action;
+		std::vector<Vertex> mark;
+		std::vector<Vertex> path;
+		Vertex current;
+		Optional<Vertex> previous;
 	};
 
-	Optional<ChainState> sinkCase(ChainState,Vertex);
-	Optional<ChainState> noneCase(ChainState);
-	Optional<ChainState> interCase(ChainState,Edge,Vertex);
-
-
-	ChainState initChainState(Polygon, Polygon);
-	ChainState cleanChainState(ChainState, Chainshard::Chainret);
-	Optional<ChainState> stateDel(ChainState, Chainshard::Chainret);
-	std::vector<Polygon> weave(ChainState current, ChainState previous);
-	std::vector<Polygon> chain(Polygon a, Polygon b, Chainshard* shard);
+	ChainState initChainState(const Vertex base, const Polygon mark);
+	Optional<Vertex> nextUnmarked(const Polygon node, const Polygon mark);
+	Optional<ChainState> stateDel(const ChainState,const Polygon mark);
+	Polygon weave(const ChainState);
+	std::vector<Polygon> chain(Chainshard* shard);
 };
 #endif

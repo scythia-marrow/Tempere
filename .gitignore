@@ -3,3 +3,5 @@ testrender
 testtiling
 testcrystal
 *.png
+*.kra
+*.swp

@@ -364,5 +364,5 @@ std::vector<Polygon> geom::tempere(Polygon glass, Polygon frac)
 {
 	printf("In poly x poly tempere\n");
 	chain::Chainshard* shard = new chain::Chainshard(glass, frac);
-	return chain::chain(glass, frac, shard);
+	return chain::chain(shard);
 }

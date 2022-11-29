@@ -1,5 +1,6 @@
 #include "geom.h"
 #include "tempere.h"
+#include <algorithm>
 
 using geom::Edge;
 using geom::Vector;
@@ -9,332 +10,236 @@ using opt::Optional;
 using chain::ChainState;
 using chain::Chainshard;
 
-// Find the index of an edge closest along the chain to a given intersection
-Optional<uint32_t> edgeFind(std::vector<Edge> poly, Vertex v, uint32_t strt)
+uint32_t chain::Chainshard::ensureID(Vertex vrt)
 {
-	for(int i = 0; i < poly.size(); i++)
-	{
-		uint32_t place = (strt+i) % poly.size();
-		Edge p = poly[place];
-		if(eq(v,p.head)) { return {true,place}; }
-	}
-	return {false,0};
+	uint32_t id = node.size();
+	auto idO = geom::find(node,vrt);
+	if(idO.is) { return idO.dat; }
+	node.push_back(vrt);
+	graph[id] = {};
+	return id;
 }
 
-void printSeg(ChainState state)
+void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 {
-	printf("State:\n\t");
-	for(auto seg : state.seg)
+	for(auto g : edgeThunk(glass))
 	{
-		printf("segment (%fx%f)\n\t",seg.inter.x,seg.inter.y);
-		for(auto ch : seg.chain)
+		// Get the head and tail of the intersection line segment
+		uint32_t hid = ensureID(g.head);
+		uint32_t tid = ensureID(g.tail);
+		// The sorting lambda(s), sort by distance to the head
+		auto distance = [=](uint32_t a) -> double
 		{
-			printf("%f,%f -> ",ch.x,ch.y);
+			return geom::magnitude(geom::vec(g.head,node[a]));
+		};
+		auto keylambda = [=](uint32_t a, uint32_t b) -> bool
+		{
+
+			return distance(a) > distance(b);
+		};
+		// Ensure nodes don't connect to duplicates or themselves
+		auto addlambda = [=](uint32_t h, uint32_t t) -> void
+		{
+			if(h == t) { return; }
+			graph[h].insert(node[t]);
+		};
+		// For each edge get all intersection verticies, sorted
+		std::vector<uint32_t> inter = {};
+		for(auto s : edgeThunk(shard))
+		{
+			if(eq(g,s)) { continue; }
+			auto gs = geom::intersect_edge_edge(g,s);
+			if(gs.is) { inter.push_back(ensureID(gs.dat)); }
 		}
-		printf("\n\t");
+		std::sort(inter.begin(),inter.end(),keylambda);
+		// Add the edge head and tail to the intersection nodes
+		bool addfront = inter.size() == 0 || inter.front() != hid;
+		bool addback = inter.size() == 0 || inter.back() != tid;
+		if(addfront) { inter.insert(inter.begin(),hid); }
+		if(addback) { inter.push_back(tid); }
+		// Now add them all
+		for(int i = 0; i < (inter.size()-1); i++)
+		{
+			addlambda(inter[i],inter[i+1]);
+			addlambda(inter[i+1],inter[i]);
+		}
+	}
+	// Print the graph
+	printf("NODE\n");
+	for(int i = 0; i < node.size(); i++)
+	{
+		printf("\t(%f,%f)\n\t\t",node[i].x,node[i].y);
+		for(auto n : graph[i])
+		{
+			printf("(%f,%f) -- ",n.x,n.y);
+		}
+		printf("\n");
+	}
+}
+
+Optional<ChainState> chain::stateDel(ChainState S, std::vector<Vertex> cand)
+{
+	printf("STATE DEL!\n\t");
+	printf("S\n\t\t");
+	for(auto n : S.path)
+	{
+		printf("(%f,%f) --",n.x,n.y);
+	}
+	printf("\n\tCAND %d\n\t\t",cand.size());
+	for(auto i : cand)
+	{
+		printf("(%f,%f) --",i.x,i.y);
 	}
 	printf("\n");
-}
-
-// None case, follow along a chain
-Optional<ChainState> chain::noneCase(ChainState state)
-{
-	ChainState ret = state;
-	// If we moved along a chain
-	Vertex next;
-	bool moved = false;
-	std::function<uint32_t(std::vector<Edge>,uint32_t)> link =
-	[&](std::vector<Edge> poly, uint32_t start) -> uint32_t
-	{
-		auto place = edgeFind(poly,state.vrt,start);
-		if(!place.is) { return 0; }
-		Edge p = poly[place.dat];
-		next = p.tail;
-		moved = true;
-		return place.dat;
-	};
-	bool anymove = false;
-	uint32_t alongA = link(state.eA, state.pA);
-	if(moved) { anymove = true; ret.vrt = next; }
-	uint32_t alongB = link(state.eB, state.pB);
-	if(moved) { anymove = true; ret.vrt = next; }
-	if(anymove)
-	{
-		state.pA = alongA;
-		state.pB = alongB;
-		ret.seg.back().chain.push_back(state.vrt);
-	}
-	printSeg(ret);
-	return {moved, ret};
-}
-
-// Intersection case, move along the tightest unmarked path
-Optional<ChainState> chain::interCase(ChainState S, Edge path, Vertex inter)
-{
+	// Just copy for now
 	ChainState ret = S;
-	// Add a new segment to the chain
-	if(!eq(path.head,inter)) { ret.seg.back().chain.push_back(path.head); }
-	ret.seg.push_back(ChainState::Segment{inter, Polygon{}});
-	// Now, add the intersection if it is distinct from the head
-	if(!eq(path.head,inter)) { ret.seg.back().chain.push_back(inter); }
-	// TODO: CASE. Need to check for loops here and detach them
-	// Update cache items to move forward
-	auto pA = edgeFind(S.eA,path.tail,S.pA);
-	auto pB = edgeFind(S.eB,path.tail,S.pB);
-	if(pA.is) { ret.pA = pA.dat; }
-	if(pB.is) { ret.pB = pB.dat; }
-	// Move forward!
-	ret.vrt = path.tail;
-	ret.inter = inter;
-	// TODO: REMOVE. Debug print
-	printSeg(ret);
+	// Find next unmarked vertex
+	Optional<Vertex> next = {false, {0.0,0.0}};
+	for(auto v : cand)
+	{
+		if(!geom::find(S.mark,v).is) { next = {true, v}; }
+	}
+	// If there is no next unmarked set an error
+	if(!next.is) { ret.action = chain::ChainState::ERROR; }
+	// Check if a loop has occured, need full edge not just current vrt
+	// TODO: START HERE. Don't stop on 1d loops
+	uint32_t pathlen = S.path.size();
+	auto tid = geom::find(S.path,next.dat);
+	if(tid.is && S.previous.is)
+	{
+		uint32_t hid = (pathlen + tid.dat - 1) % pathlen;
+		printf("PL TID HID %d %d %d\n",pathlen,tid.dat,hid);
+		if(geom::eq(S.path[hid],S.previous.dat))
+		{
+			ret.action = chain::ChainState::DONE;
+		}
+	}
+	// Otherwise move along the path
+	else
+	{
+		ret.path.push_back(S.current);
+		ret.previous = {true, S.current};
+		ret.current = next.dat;
+	}
 	return {true, ret};
 }
 
-// Sink case, basically just remove loops in the chain then none case
-Optional<ChainState> chain::sinkCase(ChainState state, Vertex inter)
-{	
-	ChainState ret = state;
-	// Clean the return chain
-	ret.seg = {};
-	// Find the tail by moving through chains until a loop is found
-	for(auto seg : state.seg)
+Polygon chain::weave(const chain::ChainState current)
+{
+	printf("WEAVING!\n\t");
+	for(auto n : current.path)
 	{
-		if(eq(seg.inter,inter)) { break; }
-		ret.seg.push_back(seg);
+		printf("(%f,%f) --",n.x,n.y);
 	}
-	return {true, ret};
+	Polygon ret = {};
+	return ret;
 }
 
-Optional<Chainshard::ChainshardID> chain::Chainshard::findpath(Vertex vrt)
+Optional<Vertex> chain::nextUnmarked(const Polygon node, const Polygon mark)
 {
-	for(int i = 0; i < inter.size(); i++)
-	{
-		for(int p = 0; p < path[i].size(); p++)
-		{
-			if(eq(vrt,path[i][p].head))
-			{
-				return {true, {i,p}};
-			}
-		}
-	}
-	return {false,0};
+	// Construct the next chain by getting a random initial vertex
+	Optional<Vertex> base = { false, {0.0,0.0} };
+	for(auto v : node) { if(!geom::find(mark,v).is) { base = {true, v}; } }
+	return base;
 }
 
-Optional<Chainshard::Chainret> chain::Chainshard::nextUnmarked()
+const std::vector<Vertex> chain::Chainshard::getNode() { return node; }
+
+ChainState chain::initChainState(Vertex vrt, std::vector<Vertex> mark)
 {
-	Chainret ret;
-	for(uint32_t i = 0; i < inter.size(); i++)
-	{
-		auto mum = minUnmarkedSlope(inter[i], i);
-		if(mum.is)
-		{
-			ret.path = path[i][mum.dat];
-			ret.inter = inter[i];
-			ret.type = Chainshard::CROSS::NONE;
-			// Mark the thingy now TODO: mark on use
-			mark[i][mum.dat] = true;
-			return {true, ret};
-		}
-	}
-	return {false, ret};
+	return { chain::ChainState::ACTION::RUN, mark, {}, vrt, {false,vrt} };
 }
 
-Chainshard::Chainret chain::Chainshard::chainMark(Vertex vrt)
+const std::vector<Vertex> chain::Chainshard::sortedPath(Vertex vertex)
 {
-	auto idx = chain::Chainshard::findpath(vrt);
-	Vertex zero {0.0,0.0};
-	if(!idx.is) { return {{zero,zero}, vrt, Chainshard::CROSS::NONE}; }
-	// Pull intersection data
-	Chainshard::ChainshardID csid = idx.dat;
-	Vertex interV = inter[csid.inter];
-	Edge inPath = path[csid.inter][csid.path];
-	// This is a sink if there are no unmarked left
-	Optional<uint32_t> mUMS = minUnmarkedSlope(vrt, csid.inter);
-	// On a sink return the intersection vector
-	if(!mUMS.is) { return {{zero,zero}, interV, Chainshard::CROSS::SINK}; }
-	// Otherwise return the next path we wish to follow, and mark it
-	Edge outPath = path[csid.inter][mUMS.dat];
-	mark[csid.inter][mUMS.dat] = true;
-	// If the intersection is not degenerate
-	return { {inPath.head,outPath.tail}, interV, Chainshard::CROSS::INTER };
-}
-	
-void chain::Chainshard::shatter(Polygon glass, Polygon shard)
-{
-	// Add a path/ori/mark triple
-	auto addlambda = [=](uint32_t i, Vertex v, Edge edge) mutable -> void
+	auto nid = geom::find(node,vertex);
+	if(!nid.is) { return {}; }
+	std::vector<Vertex> ret = {};
+	for(auto g : graph[nid.dat]) { ret.push_back(g); };
+	// A lambda to compare raw angles
+	auto anglelambda = [=](Vertex v) -> double
 	{
-		// Only add unique paths with interior direction
-		if(geom::find(path[i],edge).is || eq(edge.tail,v)) { return; }
-		path[i].push_back(edge);
-		mark[i].push_back(false);
+		return geom::angle(vertex,v);
 	};
-	// Store all edge intersections, associate them with edges
-	auto glassEdge = edgeThunk(glass);
-	auto shardEdge = edgeThunk(shard);
-	for(int ge = 0; ge < glassEdge.size(); ge++)
+	// A sortation by raw angles
+	auto sortlambda = [=](Vertex a, Vertex b) -> bool
 	{
-		Edge eg = glassEdge[ge];
-		for(int se = 0; se < shardEdge.size(); se++)
-		{
-			Edge es = shardEdge[se];
-			if(eq(eg,es)) { continue; }
-			Optional<Vertex> interO = intersect_edge_edge(eg, es);
-			if(!interO.is) { continue; }
-			Vertex intV = interO.dat;
-			Optional<uint32_t> idxO = geom::find(inter,intV);
-			uint32_t idx;
-			if(idxO.is) { idx = idxO.dat; }
-			else
-			{
-				idx = inter.size();
-				inter.push_back(intV);
-				path[idx] = {};
-				mark[idx] = {};
-				interPlaceA[idx] = ge;
-				interPlaceB[idx] = se;
-			}
-			// We do not want to add overlapping stuff
-			addlambda(idx,intV,eg);
-			addlambda(idx,intV,es);
-		}
-	}
-	printf("INTER\n");
-	for(int i = 0; i < inter.size(); i++)
-	{
-		printf("Inter (%f,%f)\n",inter[i].x,inter[i].y);
-		for(auto p : path[i])
-		{
-			printf("\t%f,%f -- %f,%f\n",
-				p.head.x,p.head.y,p.tail.x,p.tail.y);
-		}
-	}
-	printf("\n");
-}
-
-Optional<uint32_t> chain::Chainshard::minUnmarkedSlope(Vertex v, uint32_t idx)
-{
-	double min;
-	Optional<uint32_t> minO = {false, 0};
-	for(int i = 0; i < path[idx].size(); i++)
-	{
-		printf("Mark %f%f %s\n",path[idx][i].head.x,path[idx][i].head.y,mark[idx][i] ? "true" : "false");
-		if(mark[idx][i]) { continue; }
-		Edge p = path[idx][i];
-		double S = geom::dirangle(p.head,v);
-		if(!minO.is || S < min)
-		{
-			minO = {true, i};
-			min = S;
-		}
-	}
-	printf("MINo: %s,(%f,%f) -- (%f,%f)\n",minO.is ? "true": "false",
-		path[idx][minO.dat].head.x, path[idx][minO.dat].head.y,
-		path[idx][minO.dat].tail.x, path[idx][minO.dat].tail.y
-	);
-	return minO;
-}
-
-ChainState chain::initChainState(Polygon a, Polygon b)
-{
-	ChainState ret;
-	ret.eA = edgeThunk(a);
-	ret.eB = edgeThunk(b);
+		return anglelambda(a) < anglelambda(b);
+	};
+	// Sort the return vector
+	std::sort(ret.begin(),ret.end(),sortlambda);
 	return ret;
 }
 
-ChainState chain::cleanChainState(ChainState prev, Chainshard::Chainret um)
+const std::vector<Vertex> chain::Chainshard::sortedPath(Edge edge)
 {
-	Vertex vrt = um.path.tail;
-	Vertex inter = um.inter;
-	Chainshard::CROSS chirality = um.type;
-	std::vector<ChainState::Segment> segment = 
-		{ChainState::Segment{inter,Polygon{}}};
-	return {vrt,inter,um.path,chirality,0,0,prev.eA,prev.eB,segment};
-}
-
-Optional<ChainState> chain::stateDel(ChainState state, Chainshard::Chainret n)
-{
-	// Update the state by placing the right path, ect.
-	switch(n.type)
+	// Our head vector is the edge, our tail the connection
+	auto nid = geom::find(node,edge.tail);
+	if(!nid.is) { return {}; }
+	std::vector<Vertex> ret = {};
+	for(auto g : graph[nid.dat]) { ret.push_back(g); };
+	// A lambda to compare directed angles
+	auto anglelambda = [=](Vertex v) -> double
 	{
-		case Chainshard::CROSS::SINK:
-			printf("SINK FOUND!\n");
-			return sinkCase(state, n.inter);
-		case Chainshard::CROSS::NONE:
-			printf("NONE FOUND\n");
-			return noneCase(state);
-		case Chainshard::CROSS::INTER:
-			printf("INTER FOUND\n");
-			return interCase(state,n.path,n.inter);
-		default:
-			printf("DEFAULT CASE\n");
-			return noneCase(state);
-	}
-}
-
-std::vector<Polygon> chain::weave(ChainState current, ChainState previous)
-{
-	std::vector<Polygon> ret {};
-	// Set up the segment chain we move along
-	Vertex vertex = previous.vrt;
-	Vertex inter = previous.inter;
-	std::vector<chain::ChainState::Segment> segV = previous.seg;
-	// Need to store current vrt here so we don't change the previous state
-	if(!eq(inter,vertex)) { segV.back().chain.push_back(vertex); }
-	// Move along the new segment chain
-	for(int i = previous.seg.size(); i > current.seg.size(); i--)
+		Vector head = geom::vec(edge.head,edge.tail);
+		Vector tail = geom::vec(edge.tail,v);
+		return geom::dirangle(head,tail);
+	};
+	// A sortation by angle lambda
+	auto sortlambda = [=](Vertex a, Vertex b) -> bool
 	{
-		chain::ChainState::Segment seg = segV[i-1];
-		double area = geom::signed_area(seg.chain);
-		printf("AREA %f\n",area);
-		// If we are in a loop start another polygon TODO: TEST. degen
-		bool vrteq = geom::eq(seg.inter,inter);
-		bool polydegen = geom::eq(area,0.0);
-		if(vrteq && !polydegen)
-		{
-			printf("NESTED LOOPS DEGEN CASE!\n");
-			ret.push_back({});
-		}
-		ret.back().push_back(inter);
-		for(auto link : seg.chain) { ret.back().push_back(link); }
-	}
+		return anglelambda(a) < anglelambda(b);
+	};
+	// Sort the return vector
+	std::sort(ret.begin(),ret.end(),sortlambda);
 	return ret;
 }
 
-std::vector<Polygon> chain::chain(Polygon a, Polygon b, Chainshard* shard)
+const std::vector<Vertex> chain::Chainshard::sortedPath(
+	Vertex v, Optional<Vertex> o)
 {
+	if(o.is) { return sortedPath(Edge{v,o.dat}); }
+	return sortedPath(v);
+}
+
+std::vector<Polygon> chain::chain(Chainshard* shard)
+{
+	// The return value
+	std::vector<Polygon> ret = {};
+	// A copy of the graph vertices
+	const std::vector<Vertex> node = shard->getNode();
+	if(node.size() == 0) { return {}; }
 	// Initialize the state for the chain algorithm
-	ChainState S = initChainState(a,b);
-	std::vector<Polygon> ret;
-	Optional<Chainshard::Chainret> um = shard->nextUnmarked();
-	while(um.is)
+	std::vector<Vertex> mark = {};
+	// Basic loop: find the next polygon then mark enclosed vertices
+	while(mark.size() < node.size())
 	{
-		S = cleanChainState(S, um.dat);
-		// Path through the polygon
-		int thing = 0;
-		while(S.seg.size() > 0 && thing < 10)
+		Optional<Vertex> base = nextUnmarked(node,mark);
+		// Error if there is none, should never happen
+		if(!base.is) { printf("IMPOSSIBLE SITUATION\n"); return ret; }
+		// Construct the next chain state
+		ChainState S = initChainState(base.dat, mark);
+		while(S.action == ChainState::RUN)
 		{
-			// Start at the source, move and store loops
-			auto next = shard->chainMark(S.vrt);
-			// Update the state with different actions
-			auto stateChange = stateDel(S,next);
-			// If there is a sink, weave a polygon
-			if(next.type == Chainshard::CROSS::SINK)
-			{
-				auto poly = weave(stateChange.dat, S);
-				for(auto p : poly) { ret.push_back(p); }
-				// Break on a connected segment
-				if(stateChange.dat.seg.size() < 1) { break; }
-			}
-			// If there is no change there is an error
-			if(!stateChange.is) { return {}; }
-			// Update the state
-			S = stateChange.dat;
-			thing++;
+			auto cand = shard->sortedPath(S.current,S.previous);
+			auto stateopt = stateDel(S,cand);
+			// Again, should never happen
+			if(!stateopt.is) { break; }
+			S = stateopt.dat;
 		}
-		um = shard->nextUnmarked();
+		// At the end do cleanup
+		if(S.action == ChainState::ERROR) { return ret; }
+		Polygon newpoly = weave(S);
+		ret.push_back(newpoly);
+		// Create new marks for each vertex with no free connections
+		for(auto v : newpoly)
+		{
+			auto connect = shard->sortedPath(v);
+			Optional<Vertex> num = nextUnmarked(connect,newpoly);
+			if(!num.is) { mark.push_back(v); }
+		}
+		// TODO: remove
+		break;
 	}
 	return ret;
 }
