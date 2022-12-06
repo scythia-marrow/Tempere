@@ -40,7 +40,8 @@ namespace geom
 	Vector normalize(Vector);
 	Vector vec(Vertex, Vertex);
 	double angle(Vector, Vector);
-	double dirangle(Vector,Vector);
+	double dirangle(Vertex,Vertex,Vertex);
+	double dirangle(Edge, Vertex);
 	double cross(Vector, Vector);
 	double dot(Vector, Vector);
 	double magnitude(Vector);
@@ -81,5 +82,14 @@ namespace geom
 	// Search
 	Optional<uint32_t> find(Polygon, Vertex);
 	Optional<uint32_t> find(std::vector<Edge>, Edge);
+	// Sort
+	struct vrtcomp {
+	bool operator() (const Vertex &a,const Vertex &b) const
+	{
+		Vector v = vec(a,b);
+		if(magnitude(v) < EPS) { return false; }
+		return magnitude(a) < magnitude(b); 
+	}
+	};	
 };
 #endif

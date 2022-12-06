@@ -24,8 +24,7 @@ namespace chain
 {
 	class Chainshard
 	{
-		private:
-			std::vector<Vertex> node;
+		/*public:
 			struct setcomp {
 			bool operator() (const Vertex &a,const Vertex &b) const
 			{
@@ -37,7 +36,10 @@ namespace chain
 				return geom::magnitude(a) < geom::magnitude(b); 
 			}
 			};	
-			std::map<uint32_t,std::set<Vertex,setcomp>> graph;
+		*/
+		private:
+			std::vector<Vertex> node;
+			std::map<uint32_t,std::set<Vertex,geom::vrtcomp>> graph;
 			//Optional<uint32_t> minUnmarkedSlope(uint32_t);
 			void shatter(const Polygon glass, const Polygon shard);
 			uint32_t ensureID(Vertex);
@@ -57,19 +59,27 @@ namespace chain
 			}
 	};
 
-	struct ChainState
+	struct PathState
 	{
 		enum ACTION { RUN, DONE, ERROR };
 		ACTION action;
-		std::vector<Vertex> mark;
 		std::vector<Vertex> path;
 		Vertex current;
 		Optional<Vertex> previous;
 	};
 
+	struct ChainState
+	{	
+		enum HANDEDNESS { LEFT, RIGHT };
+		PathState left;
+		PathState right;
+		std::vector<Vertex> mark;
+	};
+
+	enum HANDEDNESS { LEFT, RIGHT };
 	ChainState initChainState(const Vertex base, const Polygon mark);
 	Optional<Vertex> nextUnmarked(const Polygon node, const Polygon mark);
-	Optional<ChainState> stateDel(const ChainState,const Polygon mark);
+	Optional<PathState> stateDel(const PathState, Vertex);
 	Polygon weave(const ChainState);
 	std::vector<Polygon> chain(Chainshard* shard);
 };

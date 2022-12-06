@@ -433,9 +433,9 @@ void init_workspace(Workspace* ws)
 	// Brushes are found in the brushes.h file!
 	std::vector<Brush> brush =
 	{
-		solid_brush,
+		//solid_brush,
 		shape_brush,
-		line_brush
+		//line_brush
 	};
 	for(auto br : brush) { ws->addBrush(br); }
 }

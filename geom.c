@@ -93,13 +93,21 @@ double geom::angle(Vector a, Vector b)
 	return acos(quot);
 }
 
-double geom::dirangle(Vector a, Vector b)
+double geom::dirangle(Vertex a, Vertex b, Vertex c)
 {
 	// Degenerate case
-	if(eq(a,b)) { return 0.0; }
-	// Get the Z cross product component
-	double z = (a.x * b.y) - (a.y * b.x);
-	return z > 0.0 ? angle(a,b) : angle(a,b) + M_PI;
+	if(eq(a,c)) { return 0.0; }
+	// The first vector is from b -> a, second is from b -> c
+	Vector head = vec(b,a);
+	Vector tail = vec(b,c);
+	// Get the Z cross product component to ensure this is righthanded
+	double z = (head.x * tail.y) - (head.y * tail.x);
+	return z >= 0.0 ? angle(head,tail) : angle(head,tail) + M_PI;
+}
+
+double geom::dirangle(Edge e, Vertex c)
+{
+	return dirangle(e.head,e.tail,c);
 }
 
 Vector geom::proj(Vector base, Vector vec)
