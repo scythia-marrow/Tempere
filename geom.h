@@ -51,9 +51,11 @@ namespace geom
 	bool eq(Vertex, Vertex);
 	bool eq(Vertex, Vertex, double);
 	bool eq(Edge, Edge);
+	bool eq(Polygon, Polygon);
 	// Edge ops
 	double arclen(Edge);
 	double slope(Edge);
+	bool direq(Edge, Edge);
 	// Polygon thunks
 	std::vector<Edge> edgeThunk(Polygon);
 	Polygon polygonThunk(std::vector<Edge>);

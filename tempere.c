@@ -1,5 +1,6 @@
 #include "geom.h"
 #include "tempere.h"
+#include <cassert>
 #include <algorithm>
 
 using geom::Edge;
@@ -135,10 +136,12 @@ Polygon chain::weave(const chain::ChainState current)
 			uint32_t k = (i + 2) % poly.size();
 			std::vector<Vertex> shard = {poly[i],poly[j],poly[k]};
 			Vertex midpoint = geom::midpoint(shard);
+			if(geom::find(poly,midpoint).is) { continue; }
 			if(geom::interior(midpoint,poly)) { return midpoint; }
 		}
 		return { poly[0] };
 	};
+	// If the paths are the same we have a disconnected segment
 	Polygon left = current.left.path;
 	Polygon right = current.right.path;
 	printf("WEAVE\n\t");
@@ -154,10 +157,13 @@ Polygon chain::weave(const chain::ChainState current)
 		printf("(%f,%f) -- ",v.x,v.y);
 	}
 	printf("\n");
+	// If both ways are equivalent we can just do the thingy
+	if(geom::eq(left,right)) { printf("EQUAL!\n"); return { left }; }
 	// Left handed turns match with positive (counterclockwise) rotation
 	if(geom::winding_number(inpoint(left),left) == 1) { return left; }
 	if(geom::winding_number(inpoint(right),right) == -1) { return right; }
 	printf("ERROR!\n");
+	assert(false);
 	// TODO: ERROR HANDLING. If there is no polygon found we fucked up
 	Polygon ret = {};
 	return ret;

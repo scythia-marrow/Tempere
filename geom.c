@@ -63,6 +63,21 @@ bool geom::eq(Edge e1, Edge e2)
 	return false;
 }
 
+bool geom::direq(Edge e1, Edge e2)
+{
+	if(eq(e1.head,e2.head) && eq(e1.tail, e2.tail)) { return true; }
+	return false;
+}
+
+// Have to compare all edges TODO: EFFICIENCY. Implicit comparison?
+bool geom::eq(Polygon p1, Polygon p2)
+{
+	if(p1.size() != p2.size()) { return false; }
+	std::vector<Edge> edge = edgeThunk(p2);
+	for(auto e : edgeThunk(p1)) { if(!find(edge,e).is) { return false; } }
+	return true;
+}
+
 bool geom::eq(double s1, double s2)
 {
 	return eq(s1,s2,EPS);
