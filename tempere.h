@@ -39,6 +39,7 @@ namespace chain
 		*/
 		private:
 			std::vector<Vertex> node;
+			std::set<Vertex,geom::vrtcomp> mark;
 			std::map<uint32_t,std::set<Vertex,geom::vrtcomp>> graph;
 			//Optional<uint32_t> minUnmarkedSlope(uint32_t);
 			void shatter(const Polygon glass, const Polygon shard);
@@ -46,6 +47,7 @@ namespace chain
 		public:
 			Chainshard();
 			const std::vector<Vertex> getNode();
+			const std::set<Vertex,geom::vrtcomp> getMark();
 			// Sort a path just by angle
 			const std::vector<Vertex> sortedPath(Vertex);
 			// Sort a path by signed angle from an edge

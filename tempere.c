@@ -7,6 +7,7 @@ using geom::Edge;
 using geom::Vector;
 using geom::Vertex;
 using geom::Polygon;
+using geom::vrtcomp;
 using opt::Optional;
 using chain::ChainState;
 using chain::PathState;
@@ -24,8 +25,24 @@ uint32_t chain::Chainshard::ensureID(Vertex vrt)
 
 void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 {
+	auto countedge = [](Polygon p, Edge edge) -> uint32_t
+	{
+		uint32_t ret = 0;
+		for(auto e : edgeThunk(p)) { if(geom::eq(edge,e)) { ret++; } }
+		return ret;
+	};
+	auto ensuremark = [=](Polygon p, Edge edge) -> void
+	{
+		if(countedge(p, edge) > 1)
+		{
+			mark.insert(edge.head);
+			mark.insert(edge.tail);
+		}	
+	};
 	for(auto g : edgeThunk(glass))
 	{
+		// Mark degenerate portions of the glass and shard
+		ensuremark(glass,g);
 		// Get the head and tail of the intersection line segment
 		uint32_t hid = ensureID(g.head);
 		uint32_t tid = ensureID(g.tail);
@@ -49,6 +66,8 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 		std::vector<uint32_t> inter = {};
 		for(auto s : edgeThunk(shard))
 		{
+			// Degenerate edges are marked to avoid conflict
+			ensuremark(shard,s);
 			if(eq(g,s)) { continue; }
 			auto gs = geom::intersect_edge_edge(g,s);
 			if(gs.is)
@@ -81,17 +100,6 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 			addlambda(inter[i],inter[i+1]);
 			addlambda(inter[i+1],inter[i]);
 		}
-	}
-	// Print the graph
-	printf("NODE\n");
-	for(int i = 0; i < node.size(); i++)
-	{
-		printf("\t(%f,%f)\n\t\t",node[i].x,node[i].y);
-		for(auto n : graph[i])
-		{
-			printf("(%f,%f) -- ",n.x,n.y);
-		}
-		printf("\n");
 	}
 }
 
@@ -144,25 +152,12 @@ Polygon chain::weave(const chain::ChainState current)
 	// If the paths are the same we have a disconnected segment
 	Polygon left = current.left.path;
 	Polygon right = current.right.path;
-	printf("WEAVE\n\t");
-	printf("LEFT (%f,%f) %d\n\t\t",inpoint(left).x,inpoint(left).y,geom::winding_number(inpoint(left),left));
-	for(auto v : left)
-	{
-		printf("(%f,%f) -- ",v.x,v.y);
-	}
-	printf("\n\t");
-	printf("RIGHT (%f,%f) %d\n\t\t",inpoint(right).x,inpoint(right).y,geom::winding_number(inpoint(right),right));
-	for(auto v : right)
-	{
-		printf("(%f,%f) -- ",v.x,v.y);
-	}
-	printf("\n");
-	// If both ways are equivalent we can just do the thingy
-	if(geom::eq(left,right)) { printf("EQUAL!\n"); return { left }; }
+	// If both ways are equivalent we just return
+	// if(geom::eq(left,right)) { return { left }; }
 	// Left handed turns match with positive (counterclockwise) rotation
 	if(geom::winding_number(inpoint(left),left) == 1) { return left; }
 	if(geom::winding_number(inpoint(right),right) == -1) { return right; }
-	printf("ERROR!\n");
+	printf("WEAVE ERROR!\n");
 	assert(false);
 	// TODO: ERROR HANDLING. If there is no polygon found we fucked up
 	Polygon ret = {};
@@ -178,6 +173,7 @@ Optional<Vertex> chain::nextUnmarked(const Polygon node, const Polygon mark)
 }
 
 const std::vector<Vertex> chain::Chainshard::getNode() { return node; }
+const std::set<Vertex,vrtcomp> chain::Chainshard::getMark() { return mark; }
 
 ChainState chain::initChainState(Vertex vrt, std::vector<Vertex> mark)
 {
@@ -190,23 +186,7 @@ ChainState chain::initChainState(Vertex vrt, std::vector<Vertex> mark)
 
 const std::vector<Vertex> chain::Chainshard::sortedPath(Vertex vertex)
 {
-	auto nid = geom::find(node,vertex);
-	if(!nid.is) { return {}; }
-	std::vector<Vertex> ret = {};
-	for(auto g : graph[nid.dat]) { ret.push_back(g); };
-	// A lambda to compare raw angles
-	auto anglelambda = [=](Vertex v) -> double
-	{
-		return geom::angle(vertex,v);
-	};
-	// A sortation by raw angles
-	auto sortlambda = [=](Vertex a, Vertex b) -> bool
-	{
-		return anglelambda(a) > anglelambda(b);
-	};
-	// Sort the return vector
-	std::sort(ret.begin(),ret.end(),sortlambda);
-	return ret;
+	return sortedPath(vertex,Optional<Vertex>{false,vertex});
 }
 
 const std::vector<Vertex> chain::Chainshard::sortedPath(Edge edge)
@@ -234,17 +214,6 @@ const std::vector<Vertex> chain::Chainshard::sortedPath(Edge edge)
 	};
 	// Sort the return vector
 	std::sort(ret.begin(),ret.end(),sortlambda);
-	// Print the sort and angle
-	if(ret.size() > 2)
-	{
-		printf("SORTED (%f,%f) -> (%f,%f)\n\t",edge.head.x,edge.head.y,edge.tail.x,edge.tail.y);
-		for(auto n : ret)
-		{
-			printf("(%f%f) %f -- ",n.x,n.y,anglelambda(n));
-		}
-		printf("\n");
-	}
-	
 	return ret;
 }
 
@@ -252,10 +221,10 @@ const std::vector<Vertex> chain::Chainshard::sortedPath(
 	Vertex v, Optional<Vertex> o)
 {
 	if(o.is) { return sortedPath(Edge{o.dat,v}); }
-	return sortedPath(v);
+	return sortedPath(Edge{{1.0,0.0},v});
 }
 
-Polygon vectorThunk(std::set<Vertex,geom::vrtcomp> vec)
+Polygon vectorThunk(std::set<Vertex,vrtcomp> vec)
 {
 	Polygon ret = {};
 	for(auto v : vec) { ret.push_back(v); }
@@ -269,8 +238,9 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	// A copy of the graph vertices
 	const std::vector<Vertex> node = shard->getNode();
 	if(node.size() == 0) { return {}; }
+	if(node.size() < 3) { return { node }; }
 	// Initialize the state for the chain algorithm
-	std::set<Vertex,geom::vrtcomp> mark = {};
+	auto mark = shard->getMark();
 	// Basic loop: find the next polygon then mark enclosed vertices
 	uint32_t b = 0;
 	// Lambda to process a single path to completion
@@ -292,7 +262,6 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		Optional<Vertex> base = nextUnmarked(node,vectorThunk(mark));
 		// Error if there is none, should never happen
 		if(!base.is) { printf("IMPOSSIBLE SITUATION\n"); return ret; }
-		printf("BASE (%f%f)\n",base.dat.x,base.dat.y);
 		// Construct the next chain state
 		ChainState S = initChainState(base.dat, {});
 		// Run both paths to completion

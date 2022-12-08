@@ -107,7 +107,6 @@ void Layer::addsegment(std::vector<segment> &base, Polygon poly)
 
 void Layer::tempere(std::vector<Vertex> boundary)
 {
-	printf("Layer tempere\n");
 	std::vector<segment> shatter;
 	// Check for coverage and intersections
 	for(auto p : shard)
@@ -172,7 +171,7 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 	std::uniform_real_distribution<double> dis(0.0, 1.0);
 	gen.seed(std::chrono::system_clock::now().time_since_epoch().count());
 	rand = [=]() mutable -> double { return dis(gen); };
-	// Setup the root layer
+	// Setup the background layer
 	background = addLayer(0,boundary);
 	// Ensure that we are immediately ready for all operations
 	ensureReadyLayout();
@@ -290,7 +289,7 @@ void Workspace::addSegment(
 {
 	// Test if the segment is fully within another using winding number
 	// If so bounce, if not tempere
-	std::cout << "STARTING LAYER" << startlayer << std::endl;
+	std::cout << "STARTING LAYER " << startlayer << std::endl;
 	uint32_t lid = startlayer;
 	bool breaker = true;
 	while(breaker)
@@ -315,6 +314,7 @@ void Workspace::addSegment(
 		return;
 	}
 	// If there is already a layer here, we must do tempere on the layer
+	printf("Tempere on %d\n",lid);
 	layer[lid]->tempere(bound);
 }
 
@@ -380,10 +380,16 @@ bool Workspace::render()
 {
 	// Ensure all layers are segmented properly
 	if(!ensureReadyRender()) { return false;  }
-	// Draw a background color
-	Brush back = brush[0]; // The solid brush
+	// Draw all the segments!
 	std::vector<Segment> seg = cut();
-	back.draw(this, seg[0], back).callback(); // The background segment
+	// Draw the background in solid colors
+	for(auto s : seg)
+	{
+		if(s.layer == 0)
+		{
+			solid_brush.draw(this,s,solid_brush).callback();
+		}
+	}
 	// Zipfs weighting for brushes
 	std::vector<double> zipfs = zipfs_weight(this, brush.size());
 	// Draw by layer
@@ -433,9 +439,9 @@ void init_workspace(Workspace* ws)
 	// Brushes are found in the brushes.h file!
 	std::vector<Brush> brush =
 	{
-		//solid_brush,
+		solid_brush,
 		shape_brush,
-		//line_brush
+		line_brush
 	};
 	for(auto br : brush) { ws->addBrush(br); }
 }

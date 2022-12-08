@@ -103,6 +103,7 @@ double geom::slope(Edge edge)
 double geom::angle(Vector a, Vector b)
 {
 	double mag_sum = magnitude(a) * magnitude(b);
+	if(eq(mag_sum,0.0)) { return 0.0; }
 	double dot_sum = dot(a,b);
 	double quot = dot_sum / mag_sum;
 	return acos(quot);
@@ -117,7 +118,8 @@ double geom::dirangle(Vertex a, Vertex b, Vertex c)
 	Vector tail = vec(b,c);
 	// Get the Z cross product component to ensure this is righthanded
 	double z = (head.x * tail.y) - (head.y * tail.x);
-	return z >= 0.0 ? angle(head,tail) : angle(head,tail) + M_PI;
+	if(eq(z,0.0)) { return angle(head,tail); }
+	return z > 0.0 ? angle(head,tail) : angle(head,tail) + M_PI;
 }
 
 double geom::dirangle(Edge e, Vertex c)
@@ -310,17 +312,17 @@ bool geom::interior(Vertex v, Polygon poly)
 bool geom::interior(Polygon in, Polygon out)
 {
 	// Interior if all points are interior and no edge intersections
-	printf("Checking interior...");
+	// printf("Checking interior...");
 	for(auto vrt : in)
 	{
 		if(!interior(vrt,out))
 		{
-			printf("(%f,%f) not interior\n",vrt.x,vrt.y);
+			// printf("(%f,%f) not interior\n",vrt.x,vrt.y);
 			return false;
 		}
 	}
-	printf(" all interior\n");
-	printf("Checking edge intersection(s)...");
+	// printf(" all interior\n");
+	// printf("Checking edge intersection(s)...");
 	for(auto ie : edgeThunk(in))
 	{
 		for(auto oe : edgeThunk(out))
@@ -329,12 +331,12 @@ bool geom::interior(Polygon in, Polygon out)
 			if(interO.is)
 			{
 				Vertex inter = interO.dat;
-				printf(" found (%fx%f)\n", inter.x,inter.y);
+				// printf(" found (%fx%f)\n", inter.x,inter.y);
 				return false;
 			}
 		}
 	}
-	printf(" none found\n");
+	// printf(" none found\n");
 	return true;
 }
 
@@ -385,7 +387,6 @@ Optional<uint32_t> geom::find(std::vector<Edge> poly, Edge edge)
 
 std::vector<Polygon> geom::tempere(Polygon glass, Polygon frac)
 {
-	printf("In poly x poly tempere\n");
 	chain::Chainshard* shard = new chain::Chainshard(glass, frac);
 	return chain::chain(shard);
 }
