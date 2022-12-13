@@ -34,6 +34,11 @@ std::vector<Segment> cut_mark_symmetry(Workspace* ws, Operator op)
 		if(decide_symmetry(s, op) < 2) { continue; }
 		ret.push_back(s);
 	}
+	// Sort by maximum area
+	auto arealamb = [](const Segment &s1,const Segment &s2) -> bool
+	{
+		return geom::area(s1.boundary) < geom::area(s2.boundary);
+	};
 	return ret;
 }
 
@@ -94,13 +99,13 @@ void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 	Vertex mid = centroid(max_seg.boundary); // Find the segment centroid
 	// Create a set of N radial lines that end at intersection points
 	std::vector<Edge> lines = radial_segments(max_seg, mid, N);
-
 	for(auto e : lines)
 	{
 		// Add segment with no mark
 		std::vector<Edge> line = {Edge{e.head,e.tail},{e.tail,e.head}};
 		ws->addSegment(op, layer, polygonThunk(line), 0);
 	}
+	// Make complexity constraints?
 }
 
 Callback symmetry(Workspace* ws, Operator op)

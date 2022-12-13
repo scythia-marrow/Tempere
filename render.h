@@ -151,17 +151,17 @@ namespace std
 typedef struct segment
 {
 	// ID of this segment
-	const uint32_t sid;
+	uint32_t sid;
 	// The canvas may be shared between segments
 	cairo_surface_t* canvas;
 	// Scale of coordinates -> pixels
-	const double scale;
+	double scale;
 	// Layer segment is on.
-	const uint32_t layer;
+	uint32_t layer;
 	// The boundary of the segment
-	const std::vector<Vertex> boundary;
+	std::vector<Vertex> boundary;
 	// The constraints imposed on the segment from all sources
-	const std::vector<Constraint> constraint;
+	std::vector<Constraint> constraint;
 	// Constructors for empty and null stuff
 	segment() :
 		sid{0},
@@ -236,7 +236,7 @@ class Layer
 	std::map<uint32_t,std::vector<uint32_t>> geomRel;
 	std::map<uint32_t,std::vector<Constraint>> constraint;
 	// Add a segment (purely local)
-	void addsegment(std::vector<segment>&,Polygon);
+	uint32_t addsegment(std::vector<segment>&,Polygon);
 	uint32_t ensureVid(Vertex);
 	// A single cache response
 	Segment cache(Workspace*, uint32_t gid, uint32_t sid, uint32_t height);

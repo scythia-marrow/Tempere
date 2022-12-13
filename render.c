@@ -97,32 +97,56 @@ uint32_t Layer::ensureVid(Vertex vrt)
 	return ensureVid(vrt);
 }
 
-void Layer::addsegment(std::vector<segment> &base, Polygon poly)
+uint32_t Layer::addsegment(std::vector<segment> &base, Polygon poly)
 {
 	uint32_t newsid = base.size();
 	std::vector<uint32_t> id;
 	for(auto vrt : poly) { id.push_back(ensureVid(vrt)); }
 	base.push_back({newsid,id});
+	return newsid;
 }
 
 void Layer::tempere(std::vector<Vertex> boundary)
 {
+	// Updated segments and constraints
 	std::vector<segment> shatter;
+	std::map<uint32_t,std::vector<Constraint>> shattercon;
 	// Check for coverage and intersections
 	for(auto p : shard)
 	{
+		// Shatter the shard if needed
 		std::vector<Vertex> perimiter;
 		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
 		// Run tempere on the shard
 		auto piece = geom::tempere(perimiter, boundary);
-		// TODO: match shards together, update shards
 		// Store the pieces produced in new shards
-		for(auto poly : piece) { addsegment(shatter, poly); }
+		for(auto poly : piece)
+		{
+			uint32_t newid = addsegment(shatter, poly);
+			shattercon[newid] = constraint[p.sid];
+		}
 	}
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
 	printf("Shattered %d into %d segments\n",shard.size(),shatter.size());
+	// If there is only one, print the segment
+	if(shard.size() == shatter.size())
+	{
+		for(auto p : shard)
+		{	
+			printf("SHARD\n\t");
+			std::vector<Vertex> perimiter;
+			for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
+			for(auto per : perimiter)
+			{
+				printf("(%f,%f) -- ",per.x,per.y);
+			}
+			printf("\n");
+		}	
+	}
 	shard = shatter;
+	constraint = shattercon;
+	// TODO: local and global relationships!
 }
 
 std::vector<Segment> Layer::unmappedSegment(
@@ -289,23 +313,20 @@ void Workspace::addSegment(
 {
 	// Test if the segment is fully within another using winding number
 	// If so bounce, if not tempere
-	std::cout << "STARTING LAYER " << startlayer << std::endl;
-	uint32_t lid = startlayer;
-	bool breaker = true;
-	while(breaker)
+	auto checkbounce = [=](uint32_t lid) -> bool
 	{
-		breaker = false;
-		for(auto seg :  segment)
+		for(auto seg : segment)
 		{
-			if(seg.layer == lid && interior(bound, seg.boundary))
+			if(seg.layer == lid && interior(bound,seg.boundary))
 			{
-				std::cout << "BOUNCED!" << std::endl;
-				lid++;
-				breaker = true;
-				break;
+				return true;
 			}
 		}
-	}
+		return false;
+	};
+	// Get the layer id by bouncing, potentially multiple times
+	uint32_t lid;
+	for(lid = startlayer; checkbounce(lid); lid++);
 	// Create a new layer if needed, with just the added segment
 	if(!layer.count(lid))
 	{
@@ -316,6 +337,8 @@ void Workspace::addSegment(
 	// If there is already a layer here, we must do tempere on the layer
 	printf("Tempere on %d\n",lid);
 	layer[lid]->tempere(bound);
+	// Tempere implies a recache of layer segments?
+	layer[lid]->recache(this, lid, sidGen());
 }
 
 void Workspace::setConstraint(Segment seg, std::vector<Constraint> con)
@@ -562,6 +585,7 @@ void render_picture(Workspace* ws)
 void save_picture(cairo_surface_t* canvas, std::string filename)
 {
 	cairo_surface_write_to_png(canvas,filename.c_str());
+	//cairo_surgace_write_to_svg(canvas,filename.c_str());
 }
 
 #ifdef TEST_RENDER
@@ -576,13 +600,14 @@ void test_render(std::string filename)
 		{16.0,9.0},
 		{0.0,9.0}};
 	canvas = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1920,1080);
+	// canvas = cairo_svg_surface_create(filename, 1920, 1080);
 	// TODO: maybe resolution choice?
 	Workspace* draft = new Workspace(canvas,boundary);
 	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
 	//draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
-	draft->runTempere(3);
+	draft->runTempere(20);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.

@@ -179,6 +179,8 @@ double geom::perimeter(Polygon poly)
 	//return perim;
 }
 
+double geom::area(Polygon poly) { return std::abs(signed_area(poly)); }
+
 double geom::signed_area(Polygon poly)
 {
 	double area_s = 0.0;

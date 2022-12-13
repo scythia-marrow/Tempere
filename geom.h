@@ -61,6 +61,7 @@ namespace geom
 	Polygon polygonThunk(std::vector<Edge>);
 	// Polygon Measures
 	double perimeter(Polygon);
+	double area(Polygon);
 	double signed_area(Polygon);
 	// Polygon Midpoints
 	Vertex midpoint(Polygon);
