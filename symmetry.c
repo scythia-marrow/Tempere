@@ -68,7 +68,9 @@ std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
 	// Create a direction vector in an even circle
 	double phi = (2.0 * M_PI) / N;
 	std::vector<Vector> direction;
-	for(int i = 0; i < N; i++)
+	// TODO: change
+	// for(int i = 0; i < N; i++)
+	for(int i = 0; i < N - 1; i++)
 	{
 		Vector dir {(double)sin(phi*i), (double)cos(phi*i)};
 		direction.push_back(dir);

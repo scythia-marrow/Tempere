@@ -2,6 +2,7 @@
 #include "tempere.h"
 #include <cassert>
 #include <algorithm>
+#include <math.h>
 
 using geom::Edge;
 using geom::Vector;
@@ -134,29 +135,52 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 
 Polygon chain::weave(const chain::ChainState current)
 {
-	auto inpoint = [=](Polygon poly) -> Vertex
+	auto inpoint = [=](Polygon poly) -> Optional<Vertex>
 	{
-		if(poly.size() == 0) { return {0.0,0.0}; }
-		if(poly.size() < 3) { return poly[0]; }
+		if(poly.size() == 0) { return { false, {0.0,0.0}}; }
+		if(poly.size() < 3) { return { false, poly[0] }; }
 		for(int i = 0; i < poly.size(); i++)
 		{
 			uint32_t j = (i + 1) % poly.size();
 			uint32_t k = (i + 2) % poly.size();
 			std::vector<Vertex> shard = {poly[i],poly[j],poly[k]};
-			Vertex midpoint = geom::midpoint(shard);
-			if(geom::find(poly,midpoint).is) { continue; }
-			if(geom::interior(midpoint,poly)) { return midpoint; }
+			Vector v1 = geom::vec(shard[1],shard[0]);
+			Vector v2 = geom::vec(shard[1],shard[2]);
+			double angle = geom::angle(v1,v2);
+			Vertex mid = geom::midpoint(shard);
+			if(geom::eq(angle,0.0)) { continue; }
+			if(geom::eq(angle,M_PI)) { continue; }
+			// TODO: EFFICIENCY. Dead case?
+			if(geom::find(poly,mid).is) { continue; }
+			if(geom::interior(mid,poly)) { return { true, mid }; }
 		}
-		return { poly[0] };
+		return { false, poly[0] };
 	};
 	// If the paths are the same we have a disconnected segment
 	Polygon left = current.left.path;
 	Polygon right = current.right.path;
+	if(geom::winding_number(inpoint(left).dat,left) == 1)
+	{
+		printf("LEFT\n\t");
+		for(auto l : left) { printf("(%f,%f) -- ",l.x,l.y); }
+		printf("\n");
+	}
+	if(geom::winding_number(inpoint(right).dat,right) == -1)
+	{
+		printf("RIGHT\n\t");
+		for(auto r : right) { printf("(%f,%f) -- ",r.x,r.y); }
+		printf("\n");
+	}
 	// If both ways are equivalent we just return
 	// if(geom::eq(left,right)) { return { left }; }
 	// Left handed turns match with positive (counterclockwise) rotation
-	if(geom::winding_number(inpoint(left),left) == 1) { return left; }
-	if(geom::winding_number(inpoint(right),right) == -1) { return right; }
+	auto minpolycheck = [=](Polygon poly, uint32_t wn) -> bool
+	{
+		auto optin = inpoint(poly);
+		return optin.is && geom::winding_number(optin.dat,poly) == wn;
+	};
+	if(minpolycheck(left,1)) { return left; }
+	if(minpolycheck(right,-1)) { return right; }
 	printf("WEAVE ERROR!\n");
 	assert(false);
 	// TODO: ERROR HANDLING. If there is no polygon found we fucked up
@@ -257,7 +281,7 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		}
 		return P;
 	};
-	while(mark.size() < node.size() && b < 10)
+	while(mark.size() < node.size() && b < 100)
 	{
 		Optional<Vertex> base = nextUnmarked(node,vectorThunk(mark));
 		// Error if there is none, should never happen

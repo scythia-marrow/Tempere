@@ -130,20 +130,17 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	assert(shard.size() <= shatter.size());
 	printf("Shattered %d into %d segments\n",shard.size(),shatter.size());
 	// If there is only one, print the segment
-	if(shard.size() == shatter.size())
-	{
-		for(auto p : shard)
-		{	
-			printf("SHARD\n\t");
-			std::vector<Vertex> perimiter;
-			for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
-			for(auto per : perimiter)
-			{
-				printf("(%f,%f) -- ",per.x,per.y);
-			}
-			printf("\n");
-		}	
-	}
+	for(auto p : shatter)
+	{	
+		printf("SHATTER\n\t");
+		std::vector<Vertex> perimiter;
+		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
+		for(auto per : perimiter)
+		{
+			printf("(%f,%f) -- ",per.x,per.y);
+		}
+		printf("\n");
+	}	
 	shard = shatter;
 	constraint = shattercon;
 	// TODO: local and global relationships!
@@ -357,8 +354,11 @@ bool Workspace::ensureReadyRender()
 	for(auto h : height)
 	{
 		Layer* l = layer[h];
-		std::vector<Segment> next = l->unmappedSegment(this,h,sidGen());
-		for(auto n : next) { segment.push_back(n); }
+		segment = {};
+		for(auto r : l->recache(this,h,sidGen()))
+		{
+			segment.push_back(r);
+		}
 	}
 	return true;
 }
@@ -410,6 +410,7 @@ bool Workspace::render()
 	{
 		if(s.layer == 0)
 		{
+			printf("BACKGROUND SEGMENT %d\n",s.sid);
 			solid_brush.draw(this,s,solid_brush).callback();
 		}
 	}
@@ -421,7 +422,7 @@ bool Workspace::render()
 	{
 		for(auto s : seg)
 		{
-			if(s.layer == h)
+			if(s.layer == h && zipfs.size() > 0)
 			{
 				frozen.clear();
 				std::cout << "Drawing Segment "
@@ -454,17 +455,17 @@ void init_workspace(Workspace* ws)
 	std::vector<Operator> oper = 
 	{
 		symmetry_operator,
-		figure_and_ground_operator,
-		focal_point_operator,
-		gradient_operator
+		// figure_and_ground_operator,
+		// focal_point_operator,
+		// gradient_operator
 	};
 	for(auto op : oper) { ws->addOperator(op); }
 	// Brushes are found in the brushes.h file!
 	std::vector<Brush> brush =
 	{
-		solid_brush,
-		shape_brush,
-		line_brush
+		// solid_brush,
+		// shape_brush,
+		// line_brush
 	};
 	for(auto br : brush) { ws->addBrush(br); }
 }
@@ -607,7 +608,7 @@ void test_render(std::string filename)
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
 	//draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
-	draft->runTempere(20);
+	draft->runTempere(3);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.
