@@ -102,6 +102,16 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 			addlambda(inter[i+1],inter[i]);
 		}
 	}
+	/*
+	printf("NODE\n\t");
+	for(auto n : node)
+	{
+		printf("(%f%f):\n\t\t",n.x,n.y);
+		for(auto e : graph[ensureID(n)]) { printf("(%f,%f) ",e.x,e.y); }
+		printf("\n\t");
+	}
+	printf("\n");
+	*/
 }
 
 Optional<PathState> chain::stateDel(PathState S, Vertex next)
@@ -159,7 +169,7 @@ Polygon chain::weave(const chain::ChainState current)
 	// If the paths are the same we have a disconnected segment
 	Polygon left = current.left.path;
 	Polygon right = current.right.path;
-	if(geom::winding_number(inpoint(left).dat,left) == 1)
+	/*if(geom::winding_number(inpoint(left).dat,left) == 1)
 	{
 		printf("LEFT\n\t");
 		for(auto l : left) { printf("(%f,%f) -- ",l.x,l.y); }
@@ -170,7 +180,7 @@ Polygon chain::weave(const chain::ChainState current)
 		printf("RIGHT\n\t");
 		for(auto r : right) { printf("(%f,%f) -- ",r.x,r.y); }
 		printf("\n");
-	}
+	}*/
 	// If both ways are equivalent we just return
 	// if(geom::eq(left,right)) { return { left }; }
 	// Left handed turns match with positive (counterclockwise) rotation
@@ -182,10 +192,9 @@ Polygon chain::weave(const chain::ChainState current)
 	if(minpolycheck(left,1)) { return left; }
 	if(minpolycheck(right,-1)) { return right; }
 	printf("WEAVE ERROR!\n");
-	assert(false);
+	// assert(false);
 	// TODO: ERROR HANDLING. If there is no polygon found we fucked up
-	Polygon ret = {};
-	return ret;
+	return left;
 }
 
 Optional<Vertex> chain::nextUnmarked(const Polygon node, const Polygon mark)
@@ -270,7 +279,8 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	// Lambda to process a single path to completion
 	auto runpath = [=](PathState P, ChainState::HANDEDNESS hand)
 	{
-		while(P.action == PathState::RUN)
+		uint32_t breaker = 0;
+		while(P.action == PathState::RUN && breaker < 100)
 		{
 			auto cand = shard->sortedPath(P.current,P.previous);
 			bool chirality = hand == ChainState::HANDEDNESS::RIGHT;
@@ -278,6 +288,7 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 			Vertex next = chirality ? cand.back() : cand.front();
 			auto stateopt = stateDel(P,next);
 			if(stateopt.is) { P = stateopt.dat; }
+			breaker++;
 		}
 		return P;
 	};

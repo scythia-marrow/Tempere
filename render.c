@@ -128,18 +128,12 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	}
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
-	printf("Shattered %d into %d segments\n",shard.size(),shatter.size());
+	// printf("Shattered %d into %d\n",shard.size(),shatter.size());
 	// If there is only one, print the segment
 	for(auto p : shatter)
 	{	
-		printf("SHATTER\n\t");
 		std::vector<Vertex> perimiter;
 		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
-		for(auto per : perimiter)
-		{
-			printf("(%f,%f) -- ",per.x,per.y);
-		}
-		printf("\n");
 	}	
 	shard = shatter;
 	constraint = shattercon;
@@ -257,7 +251,7 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 	// Find the (new) threshold
 	double max = 0.0;
 	for(auto c : cand) { max = c.match > max ? c.match : max; }
-	std::cout << "NEW THRESHOLD " << max << std::endl;
+	// std::cout << "NEW THRESHOLD " << max << std::endl;
 	return max;
 }
 
@@ -288,7 +282,9 @@ bool Workspace::runTempere(uint32_t steps)
 	double threshold = -1.0;
 	double min = -1.0;
 	uint32_t step = 0;
-	while(threshold == -1.0 || min == -1.0 || min < threshold)
+	//while(threshold == -1.0 || min == -1.0 || min < threshold)
+	// TODO: THIS!
+	while(true)
 	{
 		// Break at the hardcoded step limit
 		if(!(steps == -1) && step >= steps) { break; }
@@ -332,7 +328,7 @@ void Workspace::addSegment(
 		return;
 	}
 	// If there is already a layer here, we must do tempere on the layer
-	printf("Tempere on %d\n",lid);
+	// printf("Tempere on %d\n",lid);
 	layer[lid]->tempere(bound);
 	// Tempere implies a recache of layer segments?
 	layer[lid]->recache(this, lid, sidGen());
@@ -410,7 +406,7 @@ bool Workspace::render()
 	{
 		if(s.layer == 0)
 		{
-			printf("BACKGROUND SEGMENT %d\n",s.sid);
+			// printf("BACKGROUND SEGMENT %d\n",s.sid);
 			solid_brush.draw(this,s,solid_brush).callback();
 		}
 	}
@@ -607,8 +603,9 @@ void test_render(std::string filename)
 	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
-	//draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
-	draft->runTempere(3);
+	// draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
+	// draft->runTempere(19);
+	draft->runTempere(70);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.

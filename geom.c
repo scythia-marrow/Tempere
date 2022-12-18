@@ -233,21 +233,34 @@ Vertex geom::centroid(Polygon poly)
 
 Optional<Vertex> geom::intersect_ray_line(Vertex origin, Vector dir, Edge e)
 {
-	Vector p1 = add(origin, scale(e.head, -1.0));
-	Vector p2 = add(e.tail, scale(e.head, -1.0));
+	Vector p1 = sub(origin, e.head);
+	Vector p2 = sub(e.tail, e.head);
 	Vector p3 {-1.0f * dir.y, dir.x};
 
 	double D = dot(p2,p3);
-	if(abs(D) < 0.00001) { return {false, Vertex{0.0,0.0}}; }
+	// Zero implies the ray is codirectional to the line
+	if(eq(D,0.0))
+	{
+		// Codirectional to p1 as well means the origin is on the line
+		double Dt = dot(p1,p3);
+		if(eq(Dt,0.0)) { return { true, origin }; }
+		return { false, {0.0,0.0} };
+	}
 	
 	double t1 = cross(p2, p1) / D;
 	double t2 = dot(p1,p3) / D;
 
-	if (t1 >= 0.0 && (t2 >= 0.0 && t2 <= 1.0))
+	Vertex interpoint = add(origin, (Vertex)scale(dir,t1));
+	if(eq(t1,0.0))
 	{
-		return {true, add(origin, (Vertex)scale(dir, t1))};
+		if(eq(t2,0.0) || eq(t2,1.0)) { return {true, interpoint }; }
+		if(t2 < 0.0 || t2 > 1.0) { return { false, interpoint }; }
+		return { true, interpoint };
 	}
-	return {false,Vertex{0.0,0.0}};
+	if(t1 < 0.0) { return { false, interpoint }; }
+	if(eq(t2,0.0) || eq(t2,1.0)) { return { true, interpoint }; }
+	if(t2 < 0.0 || t2 > 1.0) { return { false, interpoint }; }
+	return { true, interpoint };
 }
 
 Optional<Vertex> geom::intersect_ray_line(
@@ -278,6 +291,7 @@ Optional<Vertex> geom::intersect_edge_edge(Edge head, Edge tail)
 	if(!interO.is) { return interO; }
 	Vector interRay = vec(head.head,interO.dat);
 	if(magnitude(interRay) > magnitude(ray)) { interO.is = false; }
+	if(eq(magnitude(interRay), magnitude(ray))) { interO.is = true; }
 	return interO;
 }
 
@@ -333,7 +347,6 @@ bool geom::interior(Polygon in, Polygon out)
 			if(interO.is)
 			{
 				Vertex inter = interO.dat;
-				// printf(" found (%fx%f)\n", inter.x,inter.y);
 				return false;
 			}
 		}

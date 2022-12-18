@@ -69,8 +69,7 @@ std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
 	double phi = (2.0 * M_PI) / N;
 	std::vector<Vector> direction;
 	// TODO: change
-	// for(int i = 0; i < N; i++)
-	for(int i = 0; i < N - 1; i++)
+	for(int i = 0; i < N; i++)
 	{
 		Vector dir {(double)sin(phi*i), (double)cos(phi*i)};
 		direction.push_back(dir);
@@ -137,7 +136,7 @@ Callback symmetry(Workspace* ws, Operator op)
 			// If we proceed, mark this segment as used
 			ws->op_cache[op][*max_seg] = 1;
 			int N = decide_symmetry(*max_seg, op);
-			printf("SYMMETRY (%d)...\n",N);
+			// printf("SYMMETRY (%d)...\n",N);
 			symmetrylambda(ws, op, *max_seg, N);
 		}
 	};
