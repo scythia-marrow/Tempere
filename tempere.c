@@ -194,6 +194,20 @@ Polygon chain::weave(const chain::ChainState current)
 	printf("WEAVE ERROR!\n");
 	// assert(false);
 	// TODO: ERROR HANDLING. If there is no polygon found we fucked up
+	/*printf("NODE\n\t");
+	for(auto n : node)
+	{
+		printf("(%f%f):\n\t\t",n.x,n.y);
+		for(auto e : graph[ensureID(n)]) { printf("(%f,%f) ",e.x,e.y); }
+		printf("\n\t");
+	}*/
+	printf("\n");
+	printf("LEFT %d\n\t",geom::winding_number(inpoint(left).dat,left));
+	for(auto l : left) { printf("(%f,%f) -- ",l.x,l.y); }
+	printf("\n");
+	printf("RIGHT %d\n\t",geom::winding_number(inpoint(right).dat,right));
+	for(auto r : right) { printf("(%f,%f) -- ",r.x,r.y); }
+	printf("\n");
 	return left;
 }
 

@@ -40,8 +40,6 @@ namespace geom
 	Vector normalize(Vector);
 	Vector vec(Vertex, Vertex);
 	double angle(Vector, Vector);
-	double dirangle(Vertex,Vertex,Vertex);
-	double dirangle(Edge, Vertex);
 	double cross(Vector, Vector);
 	double dot(Vector, Vector);
 	double magnitude(Vector);
@@ -76,10 +74,13 @@ namespace geom
 	std::vector<Vertex> intersect_ray_poly(Vertex, Vector, Polygon);
 	std::vector<Polygon> tempere(Polygon,Polygon);
 	// Polygon Tests
+	bool on_edge(Edge e, Vertex v);
 	bool interior(Vertex, Polygon);
 	bool interior(Polygon, Polygon);
 	// Inclosure
-	uint32_t winding_number(Vertex, Polygon);
+	double dirangle(Edge, Vertex);
+	double dirangle(Vertex,Vertex,Vertex);
+	int32_t winding_number(Vertex, Polygon);
 	// Projection
 	Vector proj(Vector,Vector);
 	// Search

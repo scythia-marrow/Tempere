@@ -312,6 +312,13 @@ void Workspace::addSegment(
 		{
 			if(seg.layer == lid && interior(bound,seg.boundary))
 			{
+				printf("BOUND\n");
+				for(auto b : bound) { printf("(%d)\n",geom::winding_number(b,seg.boundary)); }
+				printf("\n\t");
+				for(auto b : bound) { printf("(%f,%f) -- ",b.x,b.y); }
+				printf("\nSEG\n\t");
+				for(auto b : seg.boundary) { printf("(%f,%f) -- ",b.x,b.y); }
+				printf("\n");
 				return true;
 			}
 		}
@@ -605,7 +612,7 @@ void test_render(std::string filename)
 	// Run the tempere algorithm to completion
 	// draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
 	// draft->runTempere(19);
-	draft->runTempere(70);
+	draft->runTempere(28);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.

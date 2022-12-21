@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <cassert>
 
 // C++ imports
 #include <map>
@@ -355,30 +356,62 @@ bool geom::interior(Polygon in, Polygon out)
 	return true;
 }
 
-uint32_t geom::winding_number(Vertex v, Polygon poly)
+
+bool geom::on_edge(Edge e, Vertex v)
 {
-	auto is_left = [](Vertex p0, Vertex h0, Vertex t0)
+	double angle = dirangle(e, v);
+	if(!eq(angle,0.0)) { return false; }
+	if(eq(e.head,v) || eq(e.tail,v)) { return true; }
+	double mH = magnitude(vec(e.head,v));
+	double mT = magnitude(vec(e.tail,v));
+	if(eq(mH + mT,arclen(e))) { return true; }
+	return false;
+}
+
+int32_t geom::winding_number(Vertex v, Polygon poly)
+{
+	auto dir_left = [](Vertex h0, Vertex t0, Vertex p0)
 	{
-		return (((h0.x - p0.x) * (t0.y - p0.y))
-			- ((t0.x - p0.x) * (h0.y - p0.y)));
+		double left = (
+			((h0.x - p0.x) * (t0.y - p0.y))
+			- ((t0.x - p0.x) * (h0.y - p0.y))
+		);
+		return left;
 	};
-	uint32_t wn = 0;
+	int32_t wn = 0;
 	for(auto e : edgeThunk(poly))
 	{
 		Vertex H = e.head;
 		Vertex T = e.tail;
-		double left = is_left(H, T, v);
-		bool wnplus = (H.y <= v.y) && (T.y >= v.y) && (left >= 0.0);
-		bool wnminus = (H.y >= v.y) && (T.y <= v.y) && (left < 0.0);
-		/*printf("WNbools %b,%b\n",wnplus,wnminus);
-		printf("\t%b,%b,%b,IsLeft: %f\n", H.y <= v.y, T.y > v.y, left);
+		if(eq(H.x,v.x) && eq(T.x,v.x)) { continue; }
+		bool crossup = false;
+		bool crossdown = false;
+		// TODO: This case is not working because we cannot distinguish between the case of just touching the x coordinate and the case of fully traversing the x coordinate. You can do it by adding half coordinates, which has its own problems given that I'm working with integers, or by carrying a bit of state with you, which is bleh. Leaning towards just using integers and adding +1 on a half step and +2 on a full crossing.
+		if(eq(H.x,v.x) || eq(H.x,v.x))
+		{
+			if(eq(T.x,v.x) && (H.x < v.x)) { crossup = true; }
+			if(eq(H.x,v.x) && (T.x < v.x)) { crossdown = true; }
+		}
+		else
+		{
+			crossup = (H.x < v.x) && (T.x > v.x);
+			crossdown = (H.x > v.x) && (T.x < v.x);
+		}
+		assert(!(crossup && crossdown));
+		if(!(crossup || crossdown)) { continue; }
+		double left = dir_left(H,T,v);
+		if(eq(left,0.0)) { continue; }
+		bool onleft = left > 0.0;
+		if(crossup && onleft) { wn++; }
+		if(crossdown && !onleft) { wn--; }
+		///*
+		printf("WN(%d)bools %b, %b, %b\n",wn,crossup,crossdown,onleft);
 		printf("\tH,T -- p: (%f,%f), (%f,%f), (%f,%f)\n",
 			H.x, H.y, T.x, T.y, v.x, v.y);
-		*/
-		if(wnplus && wnminus) { printf("PLUS AND MINUS! ON EDGE!\n"); }
-		if(wnplus) { wn++; }
-		if(wnminus) { wn--; }
+		printf("\tLEFT %f\n",dir_left(H,T,v));
+		//*/
 	}
+	// printf("WN %d\n",wn);
 	return wn;
 }
 
