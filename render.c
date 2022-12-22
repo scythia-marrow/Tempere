@@ -612,7 +612,7 @@ void test_render(std::string filename)
 	// Run the tempere algorithm to completion
 	// draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
 	// draft->runTempere(19);
-	draft->runTempere(28);
+	draft->runTempere(100);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.

@@ -383,14 +383,18 @@ int32_t geom::winding_number(Vertex v, Polygon poly)
 	{
 		Vertex H = e.head;
 		Vertex T = e.tail;
-		if(eq(H.x,v.x) && eq(T.x,v.x)) { continue; }
 		bool crossup = false;
 		bool crossdown = false;
-		// TODO: This case is not working because we cannot distinguish between the case of just touching the x coordinate and the case of fully traversing the x coordinate. You can do it by adding half coordinates, which has its own problems given that I'm working with integers, or by carrying a bit of state with you, which is bleh. Leaning towards just using integers and adding +1 on a half step and +2 on a full crossing.
-		if(eq(H.x,v.x) || eq(H.x,v.x))
+		int32_t scale = 2;
+		if(eq(H.x,v.x)) { scale--; }
+		if(eq(T.x,v.x)) { scale--; }
+		if(scale == 0) { continue; }
+		if(scale == 1)
 		{
 			if(eq(T.x,v.x) && (H.x < v.x)) { crossup = true; }
+			if(eq(T.x,v.x) && (H.x > v.x)) { crossdown = true; }
 			if(eq(H.x,v.x) && (T.x < v.x)) { crossdown = true; }
+			if(eq(H.x,v.x) && (T.x > v.x)) { crossup = true; }
 		}
 		else
 		{
@@ -402,9 +406,9 @@ int32_t geom::winding_number(Vertex v, Polygon poly)
 		double left = dir_left(H,T,v);
 		if(eq(left,0.0)) { continue; }
 		bool onleft = left > 0.0;
-		if(crossup && onleft) { wn++; }
-		if(crossdown && !onleft) { wn--; }
-		///*
+		if(crossup && onleft) { wn += scale; }
+		if(crossdown && !onleft) { wn -= scale; }
+		/*
 		printf("WN(%d)bools %b, %b, %b\n",wn,crossup,crossdown,onleft);
 		printf("\tH,T -- p: (%f,%f), (%f,%f), (%f,%f)\n",
 			H.x, H.y, T.x, T.y, v.x, v.y);
@@ -412,7 +416,7 @@ int32_t geom::winding_number(Vertex v, Polygon poly)
 		//*/
 	}
 	// printf("WN %d\n",wn);
-	return wn;
+	return (wn/2);
 }
 
 Optional<uint32_t> geom::find(Polygon poly, Vertex vert)
