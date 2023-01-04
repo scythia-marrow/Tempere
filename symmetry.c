@@ -4,6 +4,7 @@
 #include <cassert>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 // module imports
 #include "geom.h"
@@ -37,30 +38,10 @@ std::vector<Segment> cut_mark_symmetry(Workspace* ws, Operator op)
 	// Sort by maximum area
 	auto arealamb = [](const Segment &s1,const Segment &s2) -> bool
 	{
-		return geom::area(s1.boundary) < geom::area(s2.boundary);
+		return geom::area(s1.boundary) > geom::area(s2.boundary);
 	};
+	std::sort(ret.begin(),ret.end(),arealamb);
 	return ret;
-}
-
-Segment max_segment(std::vector<Segment> segment)
-{
-	assert(segment.size() > 0);
-	// Find the largest segment (by perimeter)
-	double max_perim = 0.0;
-	Segment* max_seg = NULL;
-	for(auto s : segment)
-	{
-		// Otherwise calculate the preim
-		std::vector<Vertex> bound = s.boundary;
-		double perim = perimeter(bound);
-		if(max_seg == NULL || perim >= max_perim)
-		{
-			max_perim = perim;
-			max_seg = new Segment{s};
-		}
-	}
-	//printf("\tMax Segment: %p\n", max_seg);
-	return *max_seg;
 }
 
 std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
@@ -89,7 +70,6 @@ std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
 				count++;
 			}
 		}
-		if(count > 1) { std::cout << "ADD COMPLEX CASE!" << std::endl; }
 	}
 	return ret;
 }
@@ -114,10 +94,10 @@ Callback symmetry(Workspace* ws, Operator op)
 	// Find the usable segment with maximum perimeter
 	std::vector<Segment> segCand = cut_mark_symmetry(ws, op);
 	bool usable = false;
-	Segment* max_seg = NULL;
+	Segment max_seg;
 	if(segCand.size() > 0)
 	{
-		max_seg = new Segment{max_segment(segCand)};
+		max_seg = segCand[0];
 		usable = true;
 	}
 	// Parameters for the callback
@@ -134,10 +114,10 @@ Callback symmetry(Workspace* ws, Operator op)
 		.callback = [=]() mutable -> void
 		{
 			// If we proceed, mark this segment as used
-			ws->op_cache[op][*max_seg] = 1;
-			int N = decide_symmetry(*max_seg, op);
+			// ws->op_cache[op][*max_seg] = 1;
+			int N = decide_symmetry(max_seg, op);
 			// printf("SYMMETRY (%d)...\n",N);
-			symmetrylambda(ws, op, *max_seg, N);
+			symmetrylambda(ws, op, max_seg, N);
 		}
 	};
 

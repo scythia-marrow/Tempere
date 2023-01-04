@@ -24,14 +24,42 @@ uint32_t chain::Chainshard::ensureID(Vertex vrt)
 	return id;
 }
 
+std::vector<Vertex> sortInter(const Edge e, const Polygon base)
+{
+	// The sorting lambda(s), sort by distance to the head
+	auto distance = [=](const Vertex &a) -> double
+	{
+		return geom::magnitude(geom::vec(e.head,a));
+	};
+	auto keylambda = [=](const Vertex &a, const Vertex &b) -> bool
+	{
+		return distance(a) > distance(b);
+	};
+	std::vector<Vertex> inter;
+	for(auto b : geom::edgeThunk(base))
+	{
+		if(geom::eq(e,b)) { continue; }
+		auto eb = geom::intersect_edge_edge(e,b);
+		if(eb.is) { inter.push_back(eb.dat); }
+	}
+	bool addfront = inter.size() == 0 || !(geom::eq(inter.front(),e.head));
+	bool addback = inter.size() == 0 || !(geom::eq(inter.back(),e.tail));
+	if(addfront) { inter.insert(inter.begin(),e.head); }
+	if(addback) { inter.push_back(e.tail); }
+	std::sort(inter.begin(),inter.end(),keylambda);
+	return inter;
+}
+
 void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 {
+	// Degenerate edges have overlapp
 	auto countedge = [](Polygon p, Edge edge) -> uint32_t
 	{
 		uint32_t ret = 0;
 		for(auto e : edgeThunk(p)) { if(geom::eq(edge,e)) { ret++; } }
 		return ret;
 	};
+	// Ensure degenerate edges are marked
 	auto ensuremark = [=](Polygon p, Edge edge) -> void
 	{
 		if(countedge(p, edge) > 1)
@@ -40,78 +68,32 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 			mark.insert(edge.tail);
 		}	
 	};
-	for(auto g : edgeThunk(glass))
+	// Ensure nodes don't connect to duplicates or themselves
+	auto addlambda = [=](uint32_t h, uint32_t t) -> void
 	{
-		// Mark degenerate portions of the glass and shard
-		ensuremark(glass,g);
-		// Get the head and tail of the intersection line segment
-		uint32_t hid = ensureID(g.head);
-		uint32_t tid = ensureID(g.tail);
-		// The sorting lambda(s), sort by distance to the head
-		auto distance = [=](uint32_t a) -> double
+		if(h == t) { return; }
+		graph[h].insert(node[t]);
+	};
+	auto lineshatter = [=](const Polygon base, const Polygon chisel) -> void
+	{
+		for(auto b : edgeThunk(base))
 		{
-			return geom::magnitude(geom::vec(g.head,node[a]));
-		};
-		auto keylambda = [=](uint32_t a, uint32_t b) -> bool
-		{
-
-			return distance(a) > distance(b);
-		};
-		// Ensure nodes don't connect to duplicates or themselves
-		auto addlambda = [=](uint32_t h, uint32_t t) -> void
-		{
-			if(h == t) { return; }
-			graph[h].insert(node[t]);
-		};
-		// For each edge get all intersection verticies, sorted
-		std::vector<uint32_t> inter = {};
-		for(auto s : edgeThunk(shard))
-		{
-			// Degenerate edges are marked to avoid conflict
-			ensuremark(shard,s);
-			if(eq(g,s)) { continue; }
-			auto gs = geom::intersect_edge_edge(g,s);
-			if(gs.is)
+			// Mark degenerate portions of the base
+			ensuremark(base,b);
+			// For each edge get all intersection verticies, sorted
+			auto sortBase = sortInter(b,chisel);
+			// Now add them all to the graph
+			for(int i = 0; i < (sortBase.size()-1); i++)
 			{
-				uint32_t interID = ensureID(gs.dat);
-				uint32_t shID = ensureID(s.head);
-				uint32_t stID = ensureID(s.tail);
-				inter.push_back(interID);
-				if(shID == interID || stID == interID)
-				{
-					addlambda(shID,stID);
-					addlambda(stID,shID);
-				}
-				else
-				{
-					addlambda(ensureID(s.head),interID);
-					addlambda(ensureID(s.tail),interID);
-				}
+				uint32_t hid = ensureID(sortBase[i]);
+				uint32_t tid = ensureID(sortBase[i+1]);
+				addlambda(hid,tid);
+				addlambda(tid,hid);
 			}
 		}
-		std::sort(inter.begin(),inter.end(),keylambda);
-		// Add the edge head and tail to the intersection nodes
-		bool addfront = inter.size() == 0 || inter.front() != hid;
-		bool addback = inter.size() == 0 || inter.back() != tid;
-		if(addfront) { inter.insert(inter.begin(),hid); }
-		if(addback) { inter.push_back(tid); }
-		// Now add them all
-		for(int i = 0; i < (inter.size()-1); i++)
-		{
-			addlambda(inter[i],inter[i+1]);
-			addlambda(inter[i+1],inter[i]);
-		}
-	}
-	/*
-	printf("NODE\n\t");
-	for(auto n : node)
-	{
-		printf("(%f%f):\n\t\t",n.x,n.y);
-		for(auto e : graph[ensureID(n)]) { printf("(%f,%f) ",e.x,e.y); }
-		printf("\n\t");
-	}
-	printf("\n");
-	*/
+	};
+	lineshatter(glass,shard);
+	lineshatter(shard,glass);
 }
 
 Optional<PathState> chain::stateDel(PathState S, Vertex next)

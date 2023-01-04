@@ -499,93 +499,6 @@ Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d)
 	return {false, 0.0, NULL};
 }
 
-/*
-void layout_picture(Workspace* ws)
-{
-	// Zipf's weighting
-	std::vector<double> zipfs = zipfs_weight(ws, ws->oper.size());
-	// When the threshold for choosing an op is too high, stop
-	double threshold, min = -1.0; // TODO: should be max?
-	
-	while(threshold == -1.0 || min == -1.0 || threshold > min)
-	{
-		// Find all applicable operators
-		std::vector<Callback> cand;
-		uint32_t z = 0;
-		for(auto op : ws->)
-		{
-			Callback layout = op.layout(ws, op);
-			layout.match *= zipfs[z]; // zipf's weighting!
-			cand.push_back(layout);
-			z++;
-		}
-		// Pre breaking condition(s)
-		if(cand.size() == 0) { break; }
-		// Weighted choice
-		Callback cb = weighted_choice(ws, cand, 0.0);
-		if(cb.usable) { cb.callback(); }
-		else { break; }
-		// Post breaking conditions TODO: these names are whack
-		double max = 0.0;
-		for(auto c : cand) { max = c.match > max ? c.match : max; }
-		threshold = max;
-		min = min == -1 ? 0.0 : min += 0.01;
-		printf("Operator %f: %f %f\n", cb.match, min, threshold);
-	}
-}
-*/
-/*
-void paint_picture(Workspace* ws)
-{
-	// Zipf's weighting
-	std::vector<double> zipfs = zipfs_weight(ws, ws->brush.size());
-	//Paint by layer
-	std::map<uint64_t,std::vector<Segment*>> layer;
-	for(auto s : ws->segment) { layer[s->layer].push_back(s); }
-	for(int i = ws->min_layer; i <= ws->max_layer; i++)
-	{
-		// Paint by priority
-		std::vector<Callback> frozen;
-		for(auto s : layer[i])
-		{
-			std::vector<Callback> cand;
-			uint32_t z = 0;
-			for(auto b : ws->brush)
-			{
-				Callback draw = b.draw(ws, s, b);
-				draw.match *= zipfs[z]; // zipf's weighting!
-				cand.push_back(draw);
-				z++;
-			}
-			// Breaking condition
-			if(cand.size() == 0) { break; }
-			// Weighted choice
-			Callback cb = weighted_choice(ws, cand, 1.0);
-			if(!cb.usable) { continue; }
-			insertsort(frozen, cb);
-			while(!(ws->rand() < cb.priority))
-			{
-				insertsort(frozen, cb);
-				cb = weighted_choice(ws, cand, 0.5);
-			}
-		}
-		// Perform all the callbacks in priority order
-		for(auto cb : frozen) { cb.callback(); }
-	}
-}
-*/
-/*
-void render_picture(Workspace* ws)
-{
-	// Draw a background color
-	Brush back = ws->brush[0];
-	back.draw(ws, ws->segment[0], back).callback();
-	// Use operators and brushes to paint the picture
-	layout_picture(ws);
-	paint_picture(ws);
-}
-*/
-
 void save_picture(cairo_surface_t* canvas, std::string filename)
 {
 	cairo_surface_write_to_png(canvas,filename.c_str());
@@ -612,7 +525,7 @@ void test_render(std::string filename)
 	// Run the tempere algorithm to completion
 	// draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
 	// draft->runTempere(19);
-	draft->runTempere(100);
+	draft->runTempere(110);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.
