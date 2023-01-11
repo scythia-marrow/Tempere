@@ -224,7 +224,7 @@ void constraint_tweak(Workspace* ws, Operator op, Segment s, uint32_t fp)
 			if(unbound < 0.0) { next = 1.0 + unbound; }
 			else if (unbound > 1.0) { next = -1.0 + unbound; }
 			else { next = unbound; }
-			ws->setConstraint(s, {{con.name, 0, unbound}});
+			ws->setConstraint(op, s, {{con.name, 0, unbound}});
 		}
 	}
 	//printf("\t\tPHI, DIAL: %f -- %f -> %f -> %f\n",

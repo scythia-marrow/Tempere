@@ -153,7 +153,7 @@ void fbglambda(Workspace* ws, Operator op, struct stats stats)
 			double dis = del < 0.0 ? prev : 1.0 - prev;
 			// Make a new constraint
 			Constraint n {con.name,0,prev + (dis * del * scale)};
-			ws->setConstraint(s,{n});
+			ws->setConstraint(op,s,{n});
 			if(c.type == CONS::COMPLEXITY) {
 				//printf("STATS: %i %f %f %f %f %f %f\n", left, measure, stats.mean, del, dis, prev, con->dial);
 			}

@@ -87,7 +87,19 @@ std::vector<Segment> Layer::recache(
 	return ret;
 }
 
-std::vector<uint32_t> Layer::geom(Segment s) { return geomRel[segRev[s.sid]]; }
+std::set<uint32_t> Layer::geom(Segment s) { return geomRel[segRev[s.sid]]; }
+std::set<uint32_t> Layer::logic(uint32_t lid)
+{
+	if(!logicRel.count(lid)) { return {}; }
+	return logicRel[lid];
+}
+
+void Layer::linkLogical(Segment s, uint32_t lid)
+{
+	uint32_t sid = segMap[s.sid];
+	if(!logicRel.count(lid)) { logicRel[lid] = {}; }
+	logicRel[lid].insert(sid);
+}
 
 uint32_t Layer::ensureVid(Vertex vrt)
 {
@@ -129,7 +141,6 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
 	// printf("Shattered %d into %d\n",shard.size(),shatter.size());
-	// If there is only one, print the segment
 	for(auto p : shatter)
 	{	
 		std::vector<Vertex> perimiter;
@@ -137,7 +148,31 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	}	
 	shard = shatter;
 	constraint = shattercon;
-	// TODO: local and global relationships!
+	// Store a map of shards and their verticies for local relationships
+	std::map<uint32_t,std::vector<uint32_t>> localMap;
+	for(auto p : shard)
+	{
+		for(auto id : p.vid)
+		{
+			if(!localMap.count(id)) { localMap[id] = {}; }
+			localMap[id].push_back(p.sid);
+		}
+	}
+	// Create the local relationships
+	for(auto p : shard)
+	{
+		for(auto id : p.vid)
+		{
+			for(auto sid : localMap[id])
+			{
+				if(!geomRel.count(p.sid))
+				{
+					geomRel[p.sid] = {};
+				}
+				geomRel[p.sid].insert(sid);
+			}
+		}
+	}
 }
 
 std::vector<Segment> Layer::unmappedSegment(
@@ -190,7 +225,7 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 	background = addLayer(0,boundary);
 	// Ensure that we are immediately ready for all operations
 	ensureReadyLayout();
-	ensureReadyRender();
+	// ensureReadyRender(); TODO: organization
 	// Setup the most basic constraints
 	// TODO: interesting exploration of constraint space
 }
@@ -211,12 +246,27 @@ bool Workspace::ensureReadyLayout()
 {
 	// Clear previous segment cache and recache everything
 	segment.clear();
+	// Clear previous link map cache
+	linkMap.clear();
+	// Recache everything
 	for(auto & [h,l] : layer)
 	{
 		for(auto s : l->recache(this, h, sidGen()))
 		{
 			segment.push_back(s);
 		}	
+	}
+	// Link all the segments
+	for(auto s : segment) { linkMap[s.sid] = {}; }
+	for(auto & [h,l] : layer)
+	{
+		for(auto link : logic)
+		{
+			for(auto sid : l->logic(link))
+			{
+				linkMap[sid].insert(link);
+			}
+		}
 	}
 	return true;
 }
@@ -297,6 +347,47 @@ bool Workspace::runTempere(uint32_t steps)
 }
 
 std::vector<Segment> Workspace::cut() { return segment; }
+std::set<Segment> Workspace::geomRel(Segment s)
+{
+	std::set<Segment> ret;
+	for(auto sid : layer[s.layer]->geom(s)) { ret.insert(segment[sid]); }
+	return ret;
+}
+std::set<Segment> Workspace::logicRel(Segment s)
+{
+	std::set<Segment> out;
+	// All the links from this segment
+	for(auto link : linkMap[s.sid])
+	{
+		// Find all the segmentids from these links
+		for(auto & [h,l] : layer)
+		{
+			for(auto sid : l->logic(link))
+			{
+				out.insert(segment[sid]);
+			}
+		}
+	}
+	return out;
+}
+
+void Workspace::linkSegment(Operator op, Segment head, Segment tail)
+{
+	// Check if there is a link between the two already
+	auto H = linkMap[head.sid];
+	auto T = linkMap[tail.sid];
+	std::set<uint32_t> I;
+	std::set_intersection(
+		H.begin(),H.end(),
+		T.begin(),T.end(),
+		std::inserter(I,I.begin()));
+	if(I.size() > 0) { return; }
+	// Otherwise just make a new link
+	uint32_t newlid = logic.size();
+	logic.push_back(newlid);
+	layer[head.layer]->linkLogical(head,newlid);
+	layer[tail.layer]->linkLogical(tail,newlid);
+}
 
 void Workspace::addSegment(
 	Operator op,
@@ -312,13 +403,6 @@ void Workspace::addSegment(
 		{
 			if(seg.layer == lid && interior(bound,seg.boundary))
 			{
-				printf("BOUND\n");
-				for(auto b : bound) { printf("(%d)\n",geom::winding_number(b,seg.boundary)); }
-				printf("\n\t");
-				for(auto b : bound) { printf("(%f,%f) -- ",b.x,b.y); }
-				printf("\nSEG\n\t");
-				for(auto b : seg.boundary) { printf("(%f,%f) -- ",b.x,b.y); }
-				printf("\n");
 				return true;
 			}
 		}
@@ -341,7 +425,8 @@ void Workspace::addSegment(
 	layer[lid]->recache(this, lid, sidGen());
 }
 
-void Workspace::setConstraint(Segment seg, std::vector<Constraint> con)
+void Workspace::setConstraint(
+	Operator op, Segment seg, std::vector<Constraint> con)
 {
 	// Update the constraints on the correct layer
 	uint32_t lid = seg.layer;
@@ -352,17 +437,9 @@ void Workspace::setConstraint(Segment seg, std::vector<Constraint> con)
 bool Workspace::ensureReadyRender()
 {
 	// A gid generator
-	std::cout << "READYING LAYERS" << std::endl;
-	// Ensure all layers are segmented properly
-	for(auto h : height)
-	{
-		Layer* l = layer[h];
-		segment = {};
-		for(auto r : l->recache(this,h,sidGen()))
-		{
-			segment.push_back(r);
-		}
-	}
+	std::cout << "READYING RENDER" << std::endl;
+	// Ensure all segments are cached correctly
+	if(!ensureReadyLayout()) { return false; }
 	return true;
 }
 

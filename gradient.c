@@ -231,7 +231,7 @@ void update_chains( Workspace* ws, Operator op, std::map<uint64_t,GRAPH> grad)
 						(scale * diff * 0.3);
 					
 					Constraint c = seg.constraint[m.i];
-					ws->setConstraint(seg, {{c.name, 0, update}});
+					ws->setConstraint(op, seg, {{c.name, 0, update}});
 				}
 			}
 			count += 1.0;

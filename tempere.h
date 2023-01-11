@@ -24,19 +24,6 @@ namespace chain
 {
 	class Chainshard
 	{
-		/*public:
-			struct setcomp {
-			bool operator() (const Vertex &a,const Vertex &b) const
-			{
-				Vector vec = geom::vec(a,b);
-				if(geom::magnitude(vec) < geom::EPS)
-				{
-					return false;
-				}
-				return geom::magnitude(a) < geom::magnitude(b); 
-			}
-			};	
-		*/
 		private:
 			std::vector<Vertex> node;
 			std::set<Vertex,geom::vrtcomp> mark;

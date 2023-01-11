@@ -148,6 +148,7 @@ namespace std
 
 // A segment holds constraints and has a pointer to a canvas where it can paint
 // As it must be copiable by value, it uses lambdas to create snapshots.
+// TODO: move relationships and caches into here using lambdas?
 typedef struct segment
 {
 	// ID of this segment
@@ -220,6 +221,8 @@ namespace std
 // A layer holds a set of vertexes, ordered into segments and with
 // logical relationships that require a class construction
 // it also holds global and local constraints
+// TODO: make layers composible with workspaces. Right now they store global ids
+// without tracking which workspace is giving them said ids.
 class Layer
 {
 	struct segment
@@ -233,20 +236,27 @@ class Layer
 	std::map<uint32_t,uint32_t> segMap;
 	std::map<uint32_t,uint32_t> segRev;
 	// Geometry relationships (purely local)
-	std::map<uint32_t,std::vector<uint32_t>> geomRel;
+	std::map<uint32_t,std::set<uint32_t>> geomRel;
 	std::map<uint32_t,std::vector<Constraint>> constraint;
 	// Add a segment (purely local)
 	uint32_t addsegment(std::vector<segment>&,Polygon);
 	uint32_t ensureVid(Vertex);
+	// Logical relationships (semi-local, sid is local lid is global)
+	std::map<uint32_t,std::set<uint32_t>> logicRel;
 	// A single cache response
 	Segment cache(Workspace*, uint32_t gid, uint32_t sid, uint32_t height);
+	// All public functions return workspace-specific ids. (global)
 	public:
 		// Initialization
 		Layer(std::vector<Vertex>);
 		void tempere(std::vector<Vertex> boundary);
-		std::vector<uint32_t> geom(Segment);
-		// Set constraint
+		// Data access
+		std::set<uint32_t> geom(Segment);
+		std::set<uint32_t> logic(uint32_t);
+		// Segments perform blocking and unification between workspaces
 		void updateConstraint(Segment, std::vector<Constraint>);
+		// Link a segment to a link id
+		void linkLogical(Segment, uint32_t lid);
 		// Get all uncached segments
 		std::vector<Segment> unmappedSegment(
 			Workspace*,
@@ -265,12 +275,24 @@ class Workspace
 	// Scale and canvas are private, read-only
 	double const_scale;
 	cairo_surface_t* const_canvas;
+	/* Persistant data, remains intact after layout or draw */
+	// The constraints which direct brushes
+	std::vector<Constraint> constraint;
+	// The operators which can modify segments and impose constraints
+	std::vector<Operator> oper;
+	// The brushes that consume constraints to produce art!
+	std::vector<Brush> brush;
 	// There is always a background layer
 	Layer* background;
 	// A list of layers sorted by height. Min is zero.
 	std::vector<uint32_t> height;
 	std::map<uint32_t,Layer*> layer;
-	// And a list of segments
+	// A set of all logical relationships in the workspace
+	std::vector<uint32_t> logic;
+	// Static caches for dependency injection TODO: actually implement
+	std::map<Operator,std::map<uint32_t,uint32_t>> op_internal;
+	std::map<Brush,std::map<uint32_t,uint32_t>> br_internal;
+	/* Volatile data, regenerated after layout or draw */
 	uint32_t registerSegmentID = 0;
 	std::vector<Segment> segment;
 	std::function<uint32_t()> sidGen()
@@ -278,43 +300,28 @@ class Workspace
 		uint32_t monoid = segment.size();
 		return [=]() mutable -> uint32_t { return monoid++; };
 	};
-	// A map of logical relationships between segments
-	std::map<uint32_t,std::vector<uint32_t>> logic;
-	// The constraints which direct brushes
-	std::vector<Constraint> constraint;
-	// The operators which can modify segments and impose constraints
-	std::vector<Operator> oper;
-	// The brushes that consume constraints to produce art!
-	std::vector<Brush> brush;
+	std::map<uint32_t,std::set<uint32_t>> linkMap;
+	/* Private functions */
+	// The next layer on which boundary fits without envelopment
+	Layer* addLayer(uint32_t height, std::vector<Vertex> boundary);
+	uint32_t bounceLayer(uint32_t, std::vector<Vertex> boundary);
 	// A single layout step
 	bool ensureReadyLayout();
 	double layoutStep(std::vector<double> zipfs);
 	// A single draw step
 	std::vector<Callback> drawSegment(Segment s, std::vector<double> zipf);
-	// The next layer on which boundary fits without envelopment
-	Layer* addLayer(uint32_t height, std::vector<Vertex> boundary);
-	uint32_t bounceLayer(uint32_t, std::vector<Vertex> boundary);
 	// Function Utilities
 	bool ensureReadyRender();
-	std::map<Operator,std::map<uint32_t,uint32_t>> op_internal;
-	std::map<Brush,std::map<uint32_t,uint32_t>> br_internal;
+	// Public operations, called by the runtime directly or through DI
 	public:
 		// Initializer for the workspace
 		Workspace();
 		Workspace(cairo_surface_t*,std::vector<Vertex>);
-		// Segment creation and manipulation
-		void ensureSegment(Segment);
-		void setConstraint(Segment, std::vector<Constraint>);
-		void addSegment(
-			Operator op,
-			uint32_t layer,
-			std::vector<Vertex> boundary,
-			uint32_t mark);
 		// Find segments with a certain match, default all segments
 		std::vector<Segment> cut();
-		std::vector<Segment> geomRel(Segment);
-		std::vector<Segment> logRel(Segment);
-		// Store caches
+		std::set<Segment> geomRel(Segment);
+		std::set<Segment> logicRel(Segment);
+		// Store caches used by operators, volatile TODO: fix volatile
 		std::map<Operator,std::map<Segment,uint32_t>> op_cache;
 		std::map<Brush,std::map<Segment,uint32_t>> br_cache;
 		// Main runtime functions
@@ -323,7 +330,15 @@ class Workspace
 		bool addConstraint(Constraint);
 		bool runTempere(uint32_t steps);
 		bool render();
-		// Brush specific public data
+		// Operator specific public functions for segment manipulations
+		void setConstraint(Operator, Segment, std::vector<Constraint>);
+		void addSegment(
+			Operator op,
+			uint32_t layer,
+			std::vector<Vertex> boundary,
+			uint32_t mark);
+		void linkSegment(Operator, Segment, Segment);
+		// Brush specific public data TODO: add brush verification?
 		double scale() { return const_scale; }
 		cairo_surface_t* canvas() { return const_canvas; };
 		std::function<double()> rand;
