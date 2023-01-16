@@ -232,7 +232,7 @@ Vertex geom::centroid(Polygon poly)
 	return centroid;
 }
 
-Optional<Vertex> geom::intersect_ray_line(Vertex origin, Vector dir, Edge e)
+Optional<Vertex> geom::intersect_ray_line(Edge e, Vertex origin, Vector dir)
 {
 	Vector p1 = sub(origin, e.head);
 	Vector p2 = sub(e.tail, e.head);
@@ -265,18 +265,18 @@ Optional<Vertex> geom::intersect_ray_line(Vertex origin, Vector dir, Edge e)
 }
 
 Optional<Vertex> geom::intersect_ray_line(
-	Vertex o, Vector dir,
-	Vertex v1, Vertex v2)
+	Vertex v1, Vertex v2,
+	Vertex o, Vector dir)
 {
-	return intersect_ray_line(o, dir, Edge{v1,v2});
+	return intersect_ray_line(Edge{v1,v2}, o, dir);
 }
 
-std::vector<Vertex> geom::intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
+std::vector<Vertex> geom::intersect_ray_poly(Polygon poly, Vertex o, Vector dir)
 {
 	std::vector<Vertex> ret;
 	for(auto e : edgeThunk(poly))
 	{
-		Optional<Vertex> vrt = intersect_ray_line(o, dir, e);
+		Optional<Vertex> vrt = intersect_ray_line(e, o, dir);
 		// TODO: why is this here?
 		if(!vrt.is) { continue; }
 		ret.push_back(vrt.dat);
@@ -287,7 +287,7 @@ std::vector<Vertex> geom::intersect_ray_poly(Vertex o, Vector dir, Polygon poly)
 Optional<Vertex> geom::intersect_edge_edge(Edge head, Edge tail)
 {
 	Vector ray = sub(head.tail, head.head);
-	Optional<Vertex> interO = intersect_ray_line(head.head, ray, tail);
+	Optional<Vertex> interO = intersect_ray_line(tail, head.head, ray);
 	// Check if the intersection is within the edge
 	if(!interO.is) { return interO; }
 	Vector interRay = vec(head.head,interO.dat);
@@ -296,7 +296,7 @@ Optional<Vertex> geom::intersect_edge_edge(Edge head, Edge tail)
 	return interO;
 }
 
-Vertex geom::nearest_point(Vertex o, Polygon vtx)
+Vertex geom::nearest_point(Polygon vtx, Vertex o)
 {
 	Vertex ret = o;
 	double dis = -1.0;
@@ -308,7 +308,7 @@ Vertex geom::nearest_point(Vertex o, Polygon vtx)
 	return ret;
 }
 
-Vertex geom::furthest_point(Vertex o, Polygon vtx)
+Vertex geom::furthest_point(Polygon vtx, Vertex o)
 {
 	Vertex ret = o;
 	double dis = -1.0;
@@ -320,41 +320,32 @@ Vertex geom::furthest_point(Vertex o, Polygon vtx)
 	return ret;
 }
 
-bool geom::interior(Vertex v, Polygon poly)
+// TODO: what about edge intersections?
+bool geom::interior(Polygon poly, Vertex v)
 {
-	bool ret = winding_number(v, poly) != 0;
+	bool ret = winding_number(poly, v) != 0;
 	return ret;
 }
 
-bool geom::interior(Polygon in, Polygon out)
+bool geom::interior(Polygon out, Polygon in, bool closed)
 {
-	// Interior if all points are interior and no edge intersections
-	// printf("Checking interior...");
+	// Points on the edge are ignored
+	std::vector<Vertex> ignore;
+	for(auto vrt : in) { if(on_edge(out,vrt)) { ignore.push_back(vrt); } }
+	// Special cases for closed and open polygons
+	if(ignore.size() == out.size()) { return closed; }
+	if(!closed && ignore.size() > 0) { return false; }
+	// Finding a single exterior, non-edge point is enough
+	uint32_t I = 0;
 	for(auto vrt : in)
 	{
-		if(!interior(vrt,out))
-		{
-			// printf("(%f,%f) not interior\n",vrt.x,vrt.y);
-			return false;
-		}
+		if(I < ignore.size() && eq(vrt,ignore[I])) { I++; continue; }
+		if(!interior(out,vrt)) { return false; }
 	}
-	// printf(" all interior\n");
-	// printf("Checking edge intersection(s)...");
-	for(auto ie : edgeThunk(in))
-	{
-		for(auto oe : edgeThunk(out))
-		{
-			Optional<Vertex> interO = intersect_edge_edge(ie, oe);
-			if(interO.is)
-			{
-				Vertex inter = interO.dat;
-				return false;
-			}
-		}
-	}
-	// printf(" none found\n");
 	return true;
 }
+
+bool geom::interior(Polygon out, Polygon in) { return interior(out,in,true); }
 
 
 bool geom::on_edge(Edge e, Vertex v)
@@ -368,7 +359,13 @@ bool geom::on_edge(Edge e, Vertex v)
 	return false;
 }
 
-int32_t geom::winding_number(Vertex v, Polygon poly)
+bool geom::on_edge(Polygon p, Vertex v)
+{
+	for(auto e : edgeThunk(p)) { if(on_edge(e,v)) { return true; }}
+	return false;
+}
+
+int32_t geom::winding_number(Polygon poly, Vertex v)
 {
 	auto dir_left = [](Vertex h0, Vertex t0, Vertex p0)
 	{
@@ -408,14 +405,7 @@ int32_t geom::winding_number(Vertex v, Polygon poly)
 		bool onleft = left > 0.0;
 		if(crossup && onleft) { wn += scale; }
 		if(crossdown && !onleft) { wn -= scale; }
-		/*
-		printf("WN(%d)bools %b, %b, %b\n",wn,crossup,crossdown,onleft);
-		printf("\tH,T -- p: (%f,%f), (%f,%f), (%f,%f)\n",
-			H.x, H.y, T.x, T.y, v.x, v.y);
-		printf("\tLEFT %f\n",dir_left(H,T,v));
-		//*/
 	}
-	// printf("WN %d\n",wn);
 	return (wn/2);
 }
 
@@ -439,6 +429,7 @@ Optional<uint32_t> geom::find(std::vector<Edge> poly, Edge edge)
 
 std::vector<Polygon> geom::tempere(Polygon glass, Polygon frac)
 {
+	if(frac.size() < 2) { return { glass }; }
 	chain::Chainshard* shard = new chain::Chainshard(glass, frac);
 	return chain::chain(shard);
 }

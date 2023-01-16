@@ -49,7 +49,7 @@ double fp_dis(Workspace* ws, Operator op, Segment s, uint32_t fp)
 	for(auto other_s : ws->cut())
 	{
 		std::vector<Vertex> itrs = intersect_ray_poly(
-			o,dir,other_s.boundary);
+			other_s.boundary,o,dir);
 		double cmp = match_accumulate_dial(
 			CONS::COMPLEXITY,
 			op.cons, other_s.constraint);
@@ -104,7 +104,7 @@ std::vector<Segment> inclusion(Workspace* ws, Vertex p)
 	std::vector<Segment> ret;
 	for(auto s : ws->cut())
 	{
-		int wn = winding_number(p, s.boundary);
+		int wn = winding_number(s.boundary, p);
 		if(wn != 0) { ret.push_back(s); }
 	}
 	return ret;

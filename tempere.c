@@ -144,7 +144,7 @@ Polygon chain::weave(const chain::ChainState current)
 			if(geom::eq(angle,M_PI)) { continue; }
 			// TODO: EFFICIENCY. Dead case?
 			if(geom::find(poly,mid).is) { continue; }
-			if(geom::interior(mid,poly)) { return { true, mid }; }
+			if(geom::interior(poly,mid)) { return { true, mid }; }
 		}
 		return { false, poly[0] };
 	};
@@ -169,7 +169,7 @@ Polygon chain::weave(const chain::ChainState current)
 	auto minpolycheck = [=](Polygon poly, uint32_t wn) -> bool
 	{
 		auto optin = inpoint(poly);
-		return optin.is && geom::winding_number(optin.dat,poly) == wn;
+		return optin.is && geom::winding_number(poly,optin.dat) == wn;
 	};
 	if(minpolycheck(left,1)) { return left; }
 	if(minpolycheck(right,-1)) { return right; }
@@ -184,10 +184,10 @@ Polygon chain::weave(const chain::ChainState current)
 		printf("\n\t");
 	}*/
 	printf("\n");
-	printf("LEFT %d\n\t",geom::winding_number(inpoint(left).dat,left));
+	printf("LEFT %d\n\t",geom::winding_number(left,inpoint(left).dat));
 	for(auto l : left) { printf("(%f,%f) -- ",l.x,l.y); }
 	printf("\n");
-	printf("RIGHT %d\n\t",geom::winding_number(inpoint(right).dat,right));
+	printf("RIGHT %d\n\t",geom::winding_number(right,inpoint(right).dat));
 	for(auto r : right) { printf("(%f,%f) -- ",r.x,r.y); }
 	printf("\n");
 	return left;

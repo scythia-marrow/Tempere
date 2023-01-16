@@ -65,22 +65,24 @@ namespace geom
 	Vertex midpoint(Polygon);
 	Vertex centroid(Polygon);
 	// K-nn
-	Vertex nearest_point(Vertex, std::vector<Vertex>);
-	Vertex furthest_point(Vertex, std::vector<Vertex>);
+	Vertex nearest_point(std::vector<Vertex>, Vertex);
+	Vertex furthest_point(std::vector<Vertex>, Vertex);
 	// Intersections
-	Optional<Vertex> intersect_ray_line(Vertex, Vector, Vertex, Vertex);
-	Optional<Vertex> intersect_ray_line(Vertex origin, Vector dir, Edge e);
+	Optional<Vertex> intersect_ray_line(Vertex, Vertex, Vertex, Vector);
+	Optional<Vertex> intersect_ray_line(Edge e, Vertex origin, Vector dir);
 	Optional<Vertex> intersect_edge_edge(Edge e1, Edge e2);
-	std::vector<Vertex> intersect_ray_poly(Vertex, Vector, Polygon);
+	std::vector<Vertex> intersect_ray_poly(Polygon, Vertex, Vector);
 	std::vector<Polygon> tempere(Polygon,Polygon);
 	// Polygon Tests
 	bool on_edge(Edge e, Vertex v);
-	bool interior(Vertex, Polygon);
+	bool on_edge(Polygon, Vertex);
+	bool interior(Polygon, Vertex);
 	bool interior(Polygon, Polygon);
+	bool interior(Polygon, Polygon, bool);
 	// Inclosure
 	double dirangle(Edge, Vertex);
-	double dirangle(Vertex,Vertex,Vertex);
-	int32_t winding_number(Vertex, Polygon);
+	double dirangle(Vertex, Vertex, Vertex);
+	int32_t winding_number(Polygon, Vertex);
 	// Projection
 	Vector proj(Vector,Vector);
 	// Search

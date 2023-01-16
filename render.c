@@ -395,16 +395,15 @@ void Workspace::addSegment(
 	std::vector<Vertex> bound,
 	uint32_t mark)
 {
-	// Test if the segment is fully within another using winding number
-	// If so bounce, if not tempere
+	// Test if the segment is (fully, open set) within another
 	auto checkbounce = [=](uint32_t lid) -> bool
 	{
 		for(auto seg : segment)
 		{
-			if(seg.layer == lid && interior(bound,seg.boundary))
-			{
-				return true;
-			}
+			// We are looking for an open interior except for point
+			bool open = bound.size() < 2;
+			bool inter = interior(seg.boundary,bound,open);
+			if(seg.layer == lid && inter) { return true; }
 		}
 		return false;
 	};
@@ -535,17 +534,17 @@ void init_workspace(Workspace* ws)
 	std::vector<Operator> oper = 
 	{
 		symmetry_operator,
-		// figure_and_ground_operator,
-		// focal_point_operator,
-		// gradient_operator
+		figure_and_ground_operator,
+		focal_point_operator,
+		gradient_operator
 	};
 	for(auto op : oper) { ws->addOperator(op); }
 	// Brushes are found in the brushes.h file!
 	std::vector<Brush> brush =
 	{
-		// solid_brush,
-		// shape_brush,
-		// line_brush
+		//solid_brush,
+		//shape_brush,
+		//line_brush
 	};
 	for(auto br : brush) { ws->addBrush(br); }
 }
@@ -600,7 +599,7 @@ void test_render(std::string filename)
 	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
-	// draft->runTempere(-1); TODO: REMOVE DEBUG LIMIT
+	// draft->runTempere(-1);
 	// draft->runTempere(19);
 	draft->runTempere(110);
 	// Render the picture to a canvas

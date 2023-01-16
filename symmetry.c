@@ -63,7 +63,7 @@ std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
 		int count = 0;
 		for(auto e : edgeThunk(max_seg.boundary))
 		{
-			Optional<Vertex> intO = intersect_ray_line(mid,dir,e);
+			Optional<Vertex> intO = intersect_ray_line(e,mid,dir);
 			if(intO.is)
 			{
 				ret.push_back(Edge{mid,intO.dat});
@@ -116,7 +116,7 @@ Callback symmetry(Workspace* ws, Operator op)
 			// If we proceed, mark this segment as used
 			// ws->op_cache[op][*max_seg] = 1;
 			int N = decide_symmetry(max_seg, op);
-			// printf("SYMMETRY (%d)...\n",N);
+			printf("SYMMETRY (%d)...\n",N);
 			symmetrylambda(ws, op, max_seg, N);
 		}
 	};
