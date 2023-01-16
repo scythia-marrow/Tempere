@@ -83,7 +83,7 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 			// For each edge get all intersection verticies, sorted
 			auto sortBase = sortInter(b,chisel);
 			// Now add them all to the graph
-			for(int i = 0; i < (sortBase.size()-1); i++)
+			for(uint32_t i = 0; i < (sortBase.size()-1); i++)
 			{
 				uint32_t hid = ensureID(sortBase[i]);
 				uint32_t tid = ensureID(sortBase[i+1]);
@@ -101,7 +101,7 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 	// Just copy for now
 	PathState ret = S;
 	// Find next novel vertex
-	Optional<Vertex> prev = S.previous;
+	// Optional<Vertex> prev = S.previous;
 	// Check if a loop has occured, need full edge not just current vrt
 	uint32_t pathlen = S.path.size();
 	std::vector<Vertex> P = {};
@@ -131,7 +131,7 @@ Polygon chain::weave(const chain::ChainState current)
 	{
 		if(poly.size() == 0) { return { false, {0.0,0.0}}; }
 		if(poly.size() < 3) { return { false, poly[0] }; }
-		for(int i = 0; i < poly.size(); i++)
+		for(uint32_t i = 0; i < poly.size(); i++)
 		{
 			uint32_t j = (i + 1) % poly.size();
 			uint32_t k = (i + 2) % poly.size();
@@ -166,7 +166,7 @@ Polygon chain::weave(const chain::ChainState current)
 	// If both ways are equivalent we just return
 	// if(geom::eq(left,right)) { return { left }; }
 	// Left handed turns match with positive (counterclockwise) rotation
-	auto minpolycheck = [=](Polygon poly, uint32_t wn) -> bool
+	auto minpolycheck = [=](Polygon poly, int32_t wn) -> bool
 	{
 		auto optin = inpoint(poly);
 		return optin.is && geom::winding_number(poly,optin.dat) == wn;
@@ -209,7 +209,7 @@ ChainState chain::initChainState(Vertex vrt, std::vector<Vertex> mark)
 	ChainState ret;
 	ret.left = { chain::PathState::RUN, {}, vrt, {false,vrt} };
 	ret.right = { chain::PathState::RUN, {}, vrt, {false,vrt} };
-	ret.mark = {};
+	ret.mark = mark;
 	return ret;
 }
 

@@ -164,6 +164,7 @@ typedef struct segment
 	// The constraints imposed on the segment from all sources
 	std::vector<Constraint> constraint;
 	// Constructors for empty and null stuff
+	segment& operator=(const segment&) & = default;
 	segment() :
 		sid{0},
 		canvas{NULL},
@@ -332,6 +333,7 @@ class Workspace
 		bool render();
 		// Operator specific public functions for segment manipulations
 		void setConstraint(Operator, Segment, std::vector<Constraint>);
+		// TODO: may need to add operator verification here
 		void addSegment(
 			Operator op,
 			uint32_t layer,

@@ -20,11 +20,11 @@ std::set<uint32_t> fp_indexes(Workspace* ws, Operator op)
 {
 	std::set<uint32_t> ret;
 	std::vector<Segment> cut = ws->cut();
-	for(int i = 0; i < cut.size(); i++)
+	for(uint32_t i = 0; i < cut.size(); i++)
 	{
 		try
 		{
-			if(ws->op_cache[op].at(cut[i]) == -1)
+			if(ws->op_cache[op].at(cut[i]) == (uint32_t)-1)
 			{
 				ret.emplace(i);
 			}
@@ -173,7 +173,7 @@ uint32_t fp_c_c(Workspace* ws, Operator op, std::set<uint32_t> fp)
 	// Find the largest connected item
 	double max = 0.0;
 	uint32_t idx = -1;
-	for(int i = 0; i < ws->cut().size(); i++)
+	for(uint32_t i = 0; i < ws->cut().size(); i++)
 	{
 		if(!fp.count(i)) { continue; }
 		double d = fp_dis(ws, op, ws->cut()[i], fp_c(ws, op, fp, i));
@@ -224,7 +224,7 @@ void constraint_tweak(Workspace* ws, Operator op, Segment s, uint32_t fp)
 			if(unbound < 0.0) { next = 1.0 + unbound; }
 			else if (unbound > 1.0) { next = -1.0 + unbound; }
 			else { next = unbound; }
-			ws->setConstraint(op, s, {{con.name, 0, unbound}});
+			ws->setConstraint(op, s, {{con.name, 0, next}});
 		}
 	}
 	//printf("\t\tPHI, DIAL: %f -- %f -> %f -> %f\n",
@@ -244,9 +244,10 @@ void constraint_tweaks(Workspace* ws, Operator op, std::set<uint32_t> fp)
 		// Find the best focal point
 		uint32_t idx = fp_c(ws, op, fp, i);
 		// Skip focal points and errors
-		if(idx == -1 || fp.count(i)) { i++; continue; }
+		uint32_t nocode = (uint32_t)-1;
+		if(idx == nocode || fp.count(i)) { i++; continue; }
 		// Is there a cached focal point?
-		if(ws->op_cache[op].count(s) && ws->op_cache[op][s] != -1)
+		if(ws->op_cache[op].count(s) && ws->op_cache[op][s] != nocode)
 		{
 			uint32_t cache_idx = ws->op_cache[op][s];
 			double dis = fp_dis(ws, op, s, idx);
@@ -269,7 +270,7 @@ void fplambda(Workspace* ws, Operator op)
 	//printf("\tNUM FOCAL POINTS: %i\n", fp_idx.size());
 
 	uint32_t fp_new = fp_add(ws, op, fp_idx);
-	if(fp_new != -1) { fp_segment_add(ws, op, fp_new); }
+	if(fp_new != (uint32_t)-1) { fp_segment_add(ws, op, fp_new); }
 	// Tweak constraints to make them better!
 	constraint_tweaks(ws, op, fp_idx);
 }

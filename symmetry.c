@@ -17,7 +17,6 @@
 int decide_symmetry(Segment s, Operator op)
 {
 	// Decide upon a symmetry
-	int N = 0;
 	double sym;
 	sym = match_accumulate_dial(CONS::COMPLEXITY, op.cons, s.constraint);
 	return int(sym * 8);

@@ -151,9 +151,9 @@ double geom::arclen(Edge e)
 std::vector<Edge> geom::edgeThunk(Polygon boundary)
 {
 	std::vector<Edge> ret;
-	for(int h = 0; h < boundary.size(); h++)
+	for(uint32_t h = 0; h < boundary.size(); h++)
 	{
-		int t = (h + boundary.size() + 1) % boundary.size();
+		uint32_t t = (h + boundary.size() + 1) % boundary.size();
 		ret.push_back(Edge{boundary[h],boundary[t]});
 	}
 	return ret;
@@ -411,7 +411,7 @@ int32_t geom::winding_number(Polygon poly, Vertex v)
 
 Optional<uint32_t> geom::find(Polygon poly, Vertex vert)
 {
-	for(int i = 0; i < poly.size(); i++)
+	for(uint32_t i = 0; i < poly.size(); i++)
 	{
 		if(eq(poly[i], vert)) { return {true,i}; }
 	}
@@ -420,7 +420,7 @@ Optional<uint32_t> geom::find(Polygon poly, Vertex vert)
 
 Optional<uint32_t> geom::find(std::vector<Edge> poly, Edge edge)
 {
-	for(int i = 0; i < poly.size(); i++)
+	for(uint32_t i = 0; i < poly.size(); i++)
 	{
 		if(eq(poly[i], edge)) { return {true,i}; }
 	}

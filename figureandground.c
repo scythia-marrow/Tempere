@@ -93,7 +93,7 @@ uint32_t measure_fbg(Workspace* ws, Operator op, Segment s)
 		{comp, 8}, // The complexity of the layer
 		{size, 6},
 	};
-	double w_sum = weighted_sum(weighted_components);
+	// double w_sum = weighted_sum(weighted_components);
 	return int(256.0 * weighted_sum(weighted_components));
 }
 

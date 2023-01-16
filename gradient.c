@@ -206,7 +206,8 @@ void update_chains( Workspace* ws, Operator op, std::map<uint64_t,GRAPH> grad)
 	for(auto graph : grad)
 	{
 		// Find the maximum thingy
-		max = (max == -1 || graph.first > max) ? graph.first : max;
+		bool bigger = (max == (uint16_t)-1 || graph.first > max);
+		max = bigger ? graph.first : max;
 		// Tweak the constraints
 		uint32_t constraint = grdcon(ws, op, graph.second);
 		GRAPHSTAT stat = graph_stats(ws, op, constraint, graph.second);

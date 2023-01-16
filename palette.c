@@ -200,7 +200,7 @@ Color pick_color(
 	int place = (del_inv * dial_p + del * ws->rand()) * p->primary.size();
 
 	// Small perturbation!
-	if(place > p->primary.size() || place < 0)
+	if((uint32_t)place > p->primary.size() || place < 0)
 	{
 		return {"black", 0.0, 0.0, 0.0};
 	}

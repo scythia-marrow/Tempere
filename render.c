@@ -178,14 +178,14 @@ void Layer::tempere(std::vector<Vertex> boundary)
 std::vector<Segment> Layer::unmappedSegment(
 	Workspace* ws, uint32_t height, std::function<uint32_t()> gidgen)
 {
-	std::cout << "TOTAL SHARDS " << shard.size() << std::endl;
+	// std::cout << "TOTAL SHARDS " << shard.size() << std::endl;
 	// Make sure all segments are mapped, make a list of unmapped segments
 	std::vector<segment> remap;
 	for(auto s : shard)
 	{
 		if(segRev.count(s.sid) == 0) { remap.push_back(s); }
 	}
-	std::cout << "UNMAPPED SHARDS " << remap.size() << std::endl;
+	// std::cout << "UNMAPPED SHARDS " << remap.size() << std::endl;
 	std::vector<Segment> ret;
 	// Remap all unmapped segments
 	for(auto r : remap)
@@ -208,10 +208,10 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
 	const_canvas = can;
 	// Resolution of the canvas
 	int cairoX = cairo_image_surface_get_width(can);
-	int cairoY = cairo_image_surface_get_height(can);
+	// int cairoY = cairo_image_surface_get_height(can);
 	// X and Y scale
 	double tempereX = boundary[1].x - boundary[0].x;
-	double tempereY = boundary[1].y - boundary[2].y;
+	// double tempereY = boundary[1].y - boundary[2].y;
 	// The scale difference
 	const_scale = cairoX / tempereX;
 	// Create a random lambda that avoids the GODAMN BOILERPLATE!
@@ -297,11 +297,10 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 	Callback cb = weighted_choice(this, cand, 0.0);
 	// Run the operator if possible
 	if(cb.usable) { cb.callback(); }
-	if(!cb.usable) { std::cout << "UNUSABLE!" << std::endl; }
 	// Find the (new) threshold
 	double max = 0.0;
 	for(auto c : cand) { max = c.match > max ? c.match : max; }
-	// std::cout << "NEW THRESHOLD " << max << std::endl;
+	std::cout << "NEW THRESHOLD " << max << std::endl;
 	return max;
 }
 
@@ -332,12 +331,10 @@ bool Workspace::runTempere(uint32_t steps)
 	double threshold = -1.0;
 	double min = -1.0;
 	uint32_t step = 0;
-	//while(threshold == -1.0 || min == -1.0 || min < threshold)
-	// TODO: THIS!
-	while(true)
+	while(threshold == -1.0 || min == -1.0 || min < threshold)
 	{
 		// Break at the hardcoded step limit
-		if(!(steps == -1) && step >= steps) { break; }
+		if(!(steps == (uint32_t)-1) && step >= steps) { break; }
 		else { step += 1; }
 		// Otherwise, layout the picture one step at a time
 		threshold = layoutStep(zipfs);
@@ -373,6 +370,8 @@ std::set<Segment> Workspace::logicRel(Segment s)
 
 void Workspace::linkSegment(Operator op, Segment head, Segment tail)
 {
+	// Check if operator is allowed TODO: this
+	for(auto o : oper) { if(o.name == op.name) { printf(" "); } }
 	// Check if there is a link between the two already
 	auto H = linkMap[head.sid];
 	auto T = linkMap[tail.sid];
@@ -413,15 +412,19 @@ void Workspace::addSegment(
 	// Create a new layer if needed, with just the added segment
 	if(!layer.count(lid))
 	{
-		printf("New layer with lid %i\n",lid);
+		// printf("New layer with lid %i\n",lid);
 		layer[lid] = new Layer(bound);
 		return;
 	}
 	// If there is already a layer here, we must do tempere on the layer
-	// printf("Tempere on %d\n",lid);
 	layer[lid]->tempere(bound);
-	// Tempere implies a recache of layer segments?
-	layer[lid]->recache(this, lid, sidGen());
+	// Mark the created segment(s) and recache them
+	for(auto s : layer[lid]->unmappedSegment(this,lid,sidGen()))
+	{
+		op_cache[op][s] = mark;
+	}
+	// Then recache them
+	// layer[lid]->recache(this, lid, sidGen());
 }
 
 void Workspace::setConstraint(
@@ -561,7 +564,7 @@ Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d)
 	for(auto cb : cbs)
 	{
 		//std::cout << cb.priority << " " << weight(cb) << std::endl;
-		if(cb.usable && (weight(cb) > 0.0)) { cand.push_back(cb); }
+		if(cb.usable && (weight(cb) > d)) { cand.push_back(cb); }
 	}
 	// std::cout << "CLEANED CANDIDATES " << cand.size() << std::endl;
 	double sum = 0.0;
@@ -572,7 +575,7 @@ Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d)
 		pick -= weight(c);
 		if(pick <= 0) { return c; }
 	}
-	return {false, 0.0, NULL};
+	return {false, 0.0, 0.0, NULL};
 }
 
 void save_picture(cairo_surface_t* canvas, std::string filename)
@@ -599,9 +602,9 @@ void test_render(std::string filename)
 	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
-	// draft->runTempere(-1);
+	draft->runTempere(-1);
 	// draft->runTempere(19);
-	draft->runTempere(110);
+	// draft->runTempere(110);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.

@@ -42,13 +42,13 @@ std::vector<Match> match_constraint(
 	std::map<std::string,uint32_t> map, std::vector<Constraint> cons)
 {
 	std::vector<Match> ret;
-	int i = 0;
+	uint32_t i = 0;
 	for(auto x : cons)
 	{
-		int type = -1;
+		int32_t type = -1;
 		try { type = map.at(x.name); }
 		catch (const std::out_of_range &e) { i++; continue; }
-		ret.push_back({i, type, x.dial, x.mask});
+		ret.push_back({i, (uint32_t)type, x.dial, x.mask});
 		i++;
 	}
 	return ret;
