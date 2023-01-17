@@ -317,7 +317,7 @@ class Workspace
 	public:
 		// Initializer for the workspace
 		Workspace();
-		Workspace(cairo_surface_t*,std::vector<Vertex>);
+		Workspace(cairo_surface_t*,std::vector<Vertex>,double);
 		// Find segments with a certain match, default all segments
 		std::vector<Segment> cut();
 		std::set<Segment> geomRel(Segment);

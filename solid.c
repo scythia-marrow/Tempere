@@ -6,6 +6,7 @@
 
 // module imports
 #include <cairo.h>
+#include <cairo-svg.h>
 #include "palette.h"
 #include "render.h"
 #include "brushes.h"
@@ -19,8 +20,8 @@ void solidlambda(Segment s, Color color)
 	cairo_t* drawer = cairo_create(s.canvas);
 	// Line width
 	cairo_set_line_width(drawer, 10.0);
-	//cairo_set_line_width(drawer, 30.0);
-	//cairo_set_source_rgba(drawer, color.red, color.green, color.blue, 1);
+	// Color
+	cairo_set_source_rgba(drawer, color.red, color.green, color.blue, 1);
 	// Draw along the vertexes
 	Vertex anchor = scale(s.boundary[0], s.scale);
 	cairo_move_to(drawer, anchor.x, anchor.y);
@@ -29,13 +30,8 @@ void solidlambda(Segment s, Color color)
 	{
 		vert = scale(v, s.scale);
 		cairo_line_to(drawer, vert.x, vert.y);
-		//cairo_save(drawer);
-		//cairo_set_source_rgba(drawer, 0.8,0.8,0.8,0.6);
-		//cairo_arc(drawer, vert.x, vert.y, 30.0, 0.0, 2.0 * M_PI);
-		//cairo_restore(drawer);
 	}
-	cairo_line_to(drawer, anchor.x, anchor.y);
-	cairo_set_source_rgba(drawer, color.red, color.green, color.blue, 1);
+	cairo_close_path(drawer);
 	cairo_fill(drawer);
 	cairo_destroy(drawer);
 }

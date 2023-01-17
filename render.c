@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <cairo-svg.h>
 #include <cassert>
 
 // C++ imports
@@ -202,18 +203,11 @@ void Layer::updateConstraint(Segment seg, std::vector<Constraint> con)
 }
 
 // Workspace class definitions
-Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary)
+Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary, double scale)
 {
 	// Store the canvas
 	const_canvas = can;
-	// Resolution of the canvas
-	int cairoX = cairo_image_surface_get_width(can);
-	// int cairoY = cairo_image_surface_get_height(can);
-	// X and Y scale
-	double tempereX = boundary[1].x - boundary[0].x;
-	// double tempereY = boundary[1].y - boundary[2].y;
-	// The scale difference
-	const_scale = cairoX / tempereX;
+	const_scale = scale;
 	// Create a random lambda that avoids the GODAMN BOILERPLATE!
 	// Because random is statefull we need a mutable tab
 	// This is bonkers but at least you CAN do bonkers stuff in C++
@@ -578,10 +572,13 @@ Callback weighted_choice(Workspace* ws, std::vector<Callback> cbs, double d)
 	return {false, 0.0, 0.0, NULL};
 }
 
-void save_picture(cairo_surface_t* canvas, std::string filename)
+void save_picture(cairo_surface_t* surface, std::string filename)
 {
-	cairo_surface_write_to_png(canvas,filename.c_str());
-	//cairo_surgace_write_to_svg(canvas,filename.c_str());
+	printf("Saving to %s\n",filename.c_str());
+	cairo_surface_finish(surface);
+	cairo_surface_destroy(surface);
+	// cairo_surface_write_to_png(svg,filename.c_str());
+	// cairo_surgace_write_to_svg(canvas,filename.c_str());
 }
 
 #ifdef TEST_RENDER
@@ -589,33 +586,36 @@ void test_render(std::string filename)
 {
 	// The beggining boundary is just all edges!
 	// Default aspect ratio is 16:9, or 1920 x 1080
-	cairo_surface_t* canvas;
+	cairo_surface_t* surface;
 	std::vector<Vertex> boundary = {
 		{0.0,0.0},
 		{16.0,0.0},
 		{16.0,9.0},
 		{0.0,9.0}};
-	canvas = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1920,1080);
-	// canvas = cairo_svg_surface_create(filename, 1920, 1080);
+	double scale = 120.0;
+	surface = cairo_svg_surface_create(filename.c_str(),1920,1080);
+	cairo_svg_surface_restrict_to_version(surface, CAIRO_SVG_VERSION_1_2);
+	cairo_svg_surface_set_document_unit(surface, CAIRO_SVG_UNIT_PX);
+
 	// TODO: maybe resolution choice?
-	Workspace* draft = new Workspace(canvas,boundary);
+	Workspace* draft = new Workspace(surface,boundary,scale);
 	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
-	draft->runTempere(-1);
-	// draft->runTempere(19);
+	// draft->runTempere(-1);
+	draft->runTempere(2);
 	// draft->runTempere(110);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.
-	save_picture(canvas, filename);
+	save_picture(surface, filename);
 	// A happy little message that everything is fine :)
 	printf("Hello World~\n");
 }
 
 int main(int argc, char* argv[])
 {
-	std::string filename = "image.png";
+	std::string filename = "image.svg";
 	int arg = 0;
 	while((arg = getopt(argc, argv, "f:")) != -1)
 	{
