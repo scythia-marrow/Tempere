@@ -539,9 +539,9 @@ void init_workspace(Workspace* ws)
 	// Brushes are found in the brushes.h file!
 	std::vector<Brush> brush =
 	{
-		//solid_brush,
-		//shape_brush,
-		//line_brush
+		solid_brush,
+		shape_brush,
+		line_brush
 	};
 	for(auto br : brush) { ws->addBrush(br); }
 }
@@ -602,8 +602,8 @@ void test_render(std::string filename)
 	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
-	// draft->runTempere(-1);
-	draft->runTempere(2);
+	draft->runTempere(-1);
+	// draft->runTempere(2);
 	// draft->runTempere(110);
 	// Render the picture to a canvas
 	draft->render();

@@ -40,8 +40,10 @@ std::set<uint32_t> fp_indexes(Workspace* ws, Operator op)
 
 // Find the complexity-weighted distance to a focal point
 // TODO: ADD OTHER CONSTRAINT WEIGHTS!
+// TODO: This is occasionally called with incorrect fp
 double fp_dis(Workspace* ws, Operator op, Segment s, uint32_t fp)
 {
+	if(fp == (uint32_t)-1) { return 0.0; }
 	Vertex dest = centroid(s.boundary);
 	double ret = 0.0;
 	Vertex o = centroid(ws->cut()[fp].boundary);
