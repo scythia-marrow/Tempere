@@ -52,9 +52,8 @@ double fp_dis(Workspace* ws, Operator op, Segment s, uint32_t fp)
 	{
 		std::vector<Vertex> itrs = intersect_ray_poly(
 			other_s.boundary,o,dir);
-		double cmp = match_accumulate_dial(
-			CONS::COMPLEXITY,
-			op.cons, other_s.constraint);
+		auto cmpm = match_constraint("complexity", other_s.constraint);
+		double cmp = distribution(cmpm)(ws->rand);
 		switch(itrs.size())
 		{
 			case 0: continue;
@@ -211,23 +210,19 @@ void constraint_tweak(Workspace* ws, Operator op, Segment s, uint32_t fp)
 	Vertex T = centroid(fp_seg.boundary);
 	//printf("\tANGLES?!?!?\n");
 	double phi = angle({1.0,0.0}, vec(H,T));
-	double ori = M_PI * match_accumulate_dial(
-		CONS::ORIENTATION, op.cons, s.constraint);
-
+	auto orimatch = match_constraint("orientation", s.constraint);
+	double ori = distribution(orimatch)(ws->rand);
 	double tweak = 1.0 - abs(cos((phi - ori) * 2));
 	tweak = cos(phi - ori) < 0.0 ? tweak : -1.0 * tweak;
-	for(auto m : match_constraint(op.cons, s.constraint))
+	for(auto m : orimatch)
 	{
-		if(m.type == CONS::ORIENTATION)
-		{
-			Constraint con = s.constraint[m.i];
-			double unbound = con.dial + tweak;
-			double next = 0.0;
-			if(unbound < 0.0) { next = 1.0 + unbound; }
-			else if (unbound > 1.0) { next = -1.0 + unbound; }
-			else { next = unbound; }
-			ws->setConstraint(op, s, {{con.name, 0, next}});
-		}
+		Constraint con = s.constraint[m.i];
+		double unbound = con.dial + tweak;
+		double next = 0.0;
+		if(unbound < 0.0) { next = 1.0 + unbound; }
+		else if (unbound > 1.0) { next = -1.0 + unbound; }
+		else { next = unbound; }
+		ws->setConstraint(op, s, {{con.name, 0, 0, next}});
 	}
 	//printf("\t\tPHI, DIAL: %f -- %f -> %f -> %f\n",
 	//	phi, ori, cos(phi - ori), tweak);

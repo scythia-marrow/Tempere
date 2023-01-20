@@ -20,15 +20,15 @@ struct dir_thunk
 	double scale;
 };
 
-const std::map<uint32_t,struct dir_thunk> thunk_map
+const std::map<std::string,struct dir_thunk> thunk_map
 {
-	{(uint32_t)CONS::SIZE,
+	{"size",
 		{
 			.dir = false,
 			.scale = 0.1
 		}
 	},
-	{(uint32_t)CONS::COMPLEXITY,
+	{"complexity",
 		{
 			.dir = true,
 			.scale = 0.3
@@ -36,7 +36,7 @@ const std::map<uint32_t,struct dir_thunk> thunk_map
 	},
 };
 
-const std::function<struct dir_thunk(uint32_t)> thunk = [](uint32_t type)
+const std::function<struct dir_thunk(std::string)> thunk = [](std::string type)
 {
 		try { return thunk_map.at(type); }
 		catch(const std::out_of_range &e)
@@ -68,22 +68,22 @@ uint32_t measure_fbg(Workspace* ws, Operator op, Segment s)
 	int l_r = max - min;
 	double layer = l_r == 0 ? 0.0 : (s.layer) / (1.0 * l_r);
 	// Complexity and size determines foreground and background
-	double comp = match_accumulate_dial(
-		CONS::COMPLEXITY, op.cons, s.constraint);
-	double size = match_accumulate_dial(
-		CONS::SIZE, op.cons, s.constraint);
+	auto cmpmatch = match_constraint("complexity", s.constraint);
+	auto sizmatch = match_constraint("size", s.constraint);
+	double comp = distribution(cmpmatch)(ws->rand);
+	double size = distribution(sizmatch)(ws->rand);
 
 	// Depending on the direction we evaluate dials differently
-	std::function<double(double,uint32_t)> dirlambda =
-	[=](double c, uint32_t type)
+	std::function<double(double,std::string)> dirlambda =
+	[=](double c, std::string type)
 	{
 		bool dir = thunk(type).dir;
 		return dir ? c : 1.0 - c;
 	};
 	//printf("COMP SIZ: %f %f\n",comp, size);
 
-	comp = dirlambda(comp, CONS::COMPLEXITY);
-	size = dirlambda(size, CONS::SIZE);
+	comp = dirlambda(comp, "complexity");
+	size = dirlambda(size, "size");
 
 	//printf("COMP SIZ: %f %f\n",comp, size);
 
@@ -139,29 +139,26 @@ void fbglambda(Workspace* ws, Operator op, struct stats stats)
 	for(auto s : ws->cut())
 	{
 		double measure = 1.0 * ws->op_cache[op][s];
-		for(auto c : match_constraint(op.cons, s.constraint))
+		for(auto c : op.cons)
 		{
-			Constraint con = s.constraint[c.i];
-			double prev = con.dial;
-			// Use the matching thunk
-			bool left = thunk(c.type).dir;
-			double scale = thunk(c.type).scale;
-			// Adjust the dial
-			double del = (stats.mean - measure) / 256.0;
-			del = left ? -1.0 * del : del;
-			// Make sure the new dial has increased contrast
-			double dis = del < 0.0 ? prev : 1.0 - prev;
-			// Make a new constraint
-			Constraint n {con.name,0,prev + (dis * del * scale)};
-			ws->setConstraint(op,s,{n});
-			if(c.type == CONS::COMPLEXITY) {
-				//printf("STATS: %i %f %f %f %f %f %f\n", left, measure, stats.mean, del, dis, prev, con->dial);
+			for(auto m : match_constraint(c, s.constraint))
+			{
+				double prev = m.dial;
+				bool left = thunk(c).dir;
+				double scale = thunk(c).scale;
+				double del = (stats.mean - measure) / 256.0;
+				del = left ? -1.0 * del : del;
+				// Make sure the new dial has increased contrast
+				double dis = del < 0.0 ? prev : 1.0 - prev;
+				// Make a new constraint
+				double next = prev + (dis * del * scale);
+				Constraint n {c, 0, 0, next};
+				ws->setConstraint(op,s,{n});
 			}
 		}
 		// Reset the cache
 		ws->op_cache[op].erase(s);
 	}
-	//printf("\tFBG STS: %f %f %f %f\n", stats.range, stats.mean, stats.variance, stats.sd);
 }
 
 // The basic idea is to create connected foreground areas of high complexity

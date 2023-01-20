@@ -515,9 +515,10 @@ bool Workspace::render()
 	return true;
 }
 
-void init_workspace(Workspace* ws)
+void init_constraints(Workspace* ws)
 {
 	// Constraints are found in the constraints.h file
+	// We want
 	std::vector<Constraint> constraint =
 	{
 		palette((uint32_t)palette::RAND,0.0),
@@ -527,6 +528,11 @@ void init_workspace(Workspace* ws)
 		orientation(0.5)
 	};
 	for(auto con : constraint) { ws->addConstraint(con); }
+}
+
+
+void init_workspace(Workspace* ws)
+{
 	// Operators are found in the operators.h file!
 	std::vector<Operator> oper = 
 	{

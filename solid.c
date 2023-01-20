@@ -42,18 +42,8 @@ Callback solid(Workspace* ws, Segment s, Brush b)
 	// TODO: do something with generators to make this work...
 	double match = -1.0;
 	uint32_t palette_mask = 0;
-	for(auto x : match_constraint(b.cons, s.constraint))
-	{
-		switch(x.type)
-		{
-			case CONS::COMPLEXITY:
-				match = accumulate_dial(match, x.dial);
-				break;
-			case CONS_PALETTE::PALETTE:
-				palette_mask |= x.mask;
-				break;
-		}
-	}
+	auto palette_list = match_constraint("palette", s.constraint);
+	for(auto m : palette_list) { palette_mask |= m.mask; }
 
 	Palette palette = pick_palette(ws, palette_mask);
 	Color color = pick_color(ws, &palette, s.constraint);

@@ -153,7 +153,6 @@ Palette pick_palette(Workspace* ws, uint32_t mask)
 	if(mask == 0) { return random_palette(ws); }
 	// Merge palettes according to rules
 	std::vector<Palette> base;
-
 	for(auto x : BitIterator<enum palette>())
 	{
 		switch(mask & (uint32_t)x)
@@ -170,8 +169,6 @@ Palette pick_palette(Workspace* ws, uint32_t mask)
 		}
 	}
 
-	
-	
 	// TODO: MERGE BASE PALETTES IN A CLEVER WAY!
 	return base[0];
 }
@@ -181,17 +178,13 @@ Color pick_color(
 	Palette* p,
 	std::vector<Constraint> constraints)
 {
-	std::map<std::string,uint32_t> map {
-		{"palette",CONS_PALETTE::PALETTE},
-		{"perturbation",CONS::PERTURBATION}
-	};
 	// TODO: Make it a bit smarter yo
-	double dial_p = match_accumulate_dial(
-		CONS_PALETTE::PALETTE, map, constraints);
-	double dial_d = match_accumulate_dial(
-		CONS::PERTURBATION, map, constraints);
+	// auto match = match_constraint("palette", constraints);
+	// auto prtrb = match_constraint("perturb", constraints);
 
 	// TODO: debug this!
+	double dial_d = -1.0;
+	double dial_p = -1.0;
 	if(dial_d == -1.0) { dial_d = 0.5; }
 	if(dial_p == -1.0) { dial_p = 0.0; }
 	

@@ -93,11 +93,11 @@ DIJKSTRAS_RET linkGraph(Workspace* ws)
 	return {lnk,mst,max};
 }
 
-uint32_t grdcon(Workspace* ws, Operator op, GRAPH graph)
+std::string grdcon(Workspace* ws, Operator op, GRAPH graph)
 {
 	// Find the gradient constraint
 	double dis = -1.0;
-	uint32_t constraint = -1;
+	std::string constraint;
 	for(auto con : op.cons)
 	{
 		double min = -1.0;
@@ -105,22 +105,21 @@ uint32_t grdcon(Workspace* ws, Operator op, GRAPH graph)
 		for(auto edge : graph)
 		{
 			uint64_t id = (uint64_t)edge.first;
-			double val = match_accumulate_dial(
-				con.second,
-				op.cons,
-				ws->cut()[id].constraint);
+			auto cons = ws->cut()[id].constraint;
+			auto match = match_constraint(con, cons);
+			double val = distribution(match)(ws->rand);
 			max = (max == -1.0 || val > max) ? val : max;
 			min = (min == -1.0 || val < max) ? val : min;
 		}
 		double diff = max - min;
 		dis = (dis == -1.0 || diff > dis) ? diff : dis;
-		if(dis == diff) { constraint = con.second; }
+		if(dis == diff) { constraint = con; }
 	}
 	return constraint;
 }
 
 struct GRAPHSTAT { double min; double max; double minC; double maxC; double s;};
-GRAPHSTAT graph_stats(Workspace* ws, Operator op, uint32_t c, GRAPH graph)
+GRAPHSTAT graph_stats(Workspace* ws, Operator op, std::string c, GRAPH graph)
 {
 	double min = -1.0;
 	double max = -1.0;
@@ -130,8 +129,8 @@ GRAPHSTAT graph_stats(Workspace* ws, Operator op, uint32_t c, GRAPH graph)
 	for(auto g : graph)
 	{
 		uint16_t id = g.second;
-		double val = match_accumulate_dial(
-			c, op.cons, ws->cut()[id].constraint);
+		auto match = match_constraint(c, ws->cut()[id].constraint);
+		double val = distribution(match)(ws->rand);
 		min = (min == -1.0 || val < min) ? val : min;
 		max = (max == -1.0 || val > max) ? val : max;
 		if(min == val) { minC = count; } 
@@ -177,7 +176,7 @@ double grdmatch(Workspace* ws, Operator op, std::map<uint64_t,GRAPH> gradient)
 	// Eval all gradients
 	for(auto grad : gradient)
 	{
-		uint32_t constraint = grdcon(ws, op, grad.second);
+		std::string constraint = grdcon(ws, op, grad.second);
 		GRAPHSTAT stat = graph_stats(ws, op, constraint, grad.second);
 		// Evaluate the constraint by finding the SD of differences
 		std::vector<double> diff;
@@ -185,10 +184,9 @@ double grdmatch(Workspace* ws, Operator op, std::map<uint64_t,GRAPH> gradient)
 		for(auto edge : grad.second)
 		{
 			uint32_t id = edge.second;
-			double val = match_accumulate_dial(
-				constraint,
-				op.cons,
-				ws->cut()[id].constraint);
+			auto cons = ws->cut()[id].constraint;
+			auto match = match_constraint(constraint, cons);
+			double val = distribution(match)(ws->rand);
 			double tgt = edge_target(count, stat);
 			diff.push_back(val - tgt);
 			count += 1.0;
@@ -209,8 +207,8 @@ void update_chains( Workspace* ws, Operator op, std::map<uint64_t,GRAPH> grad)
 		bool bigger = (max == (uint16_t)-1 || graph.first > max);
 		max = bigger ? graph.first : max;
 		// Tweak the constraints
-		uint32_t constraint = grdcon(ws, op, graph.second);
-		GRAPHSTAT stat = graph_stats(ws, op, constraint, graph.second);
+		std::string cons = grdcon(ws, op, graph.second);
+		GRAPHSTAT stat = graph_stats(ws, op, cons, graph.second);
 		// Now that we know the statistics we want to update stuff
 		double count = 0.0;
 		for(auto g : graph.second)
@@ -218,22 +216,18 @@ void update_chains( Workspace* ws, Operator op, std::map<uint64_t,GRAPH> grad)
 			double target = edge_target(count, stat);
 			uint32_t id = g.second;
 			Segment seg = ws->cut()[id];
-			for(auto m : match_constraint(op.cons, seg.constraint))
+			for(auto m : match_constraint(cons, seg.constraint))
 			{
-				// Move it closer to the target TODO: scale!
-				if(m.type == constraint)
-				{
-					double diff = target - m.dial;
-					double low = m.dial;
-					double hgh = 1.0 - m.dial;
-					double scale = diff <= 0.0 ? low : hgh;
-					double update =
-						m.dial +
-						(scale * diff * 0.3);
-					
-					Constraint c = seg.constraint[m.i];
-					ws->setConstraint(op, seg, {{c.name, 0, update}});
-				}
+				double diff = target - m.dial;
+				double low = m.dial;
+				double hgh = 1.0 - m.dial;
+				double scale = diff <= 0.0 ? low : hgh;
+				double update =
+					m.dial +
+					(scale * diff * 0.3);
+				
+				Constraint c = seg.constraint[m.i];
+				ws->setConstraint(op, seg, {{c.name, 0, 0, update}});
 			}
 			count += 1.0;
 		}

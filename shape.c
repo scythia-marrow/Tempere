@@ -85,24 +85,14 @@ Callback shape(Workspace* ws, Segment s, Brush b)
 	//double com_dial = -1.0;
 	//double siz_dial = -1.0;
 	//double ori_dial = -1.0;
-	for(auto x : match_constraint(b.cons, s.constraint))
-	{
-		switch(x.type)
-		{
-			case CONS_PALETTE::PALETTE:
-				palette_mask |= x.mask;
-				break;
-			case CONS::COMPLEXITY:
-				d.com = accumulate_dial(d.com, x.dial);
-				break;
-			case CONS::SIZE:
-				d.siz = accumulate_dial(d.siz, x.dial);
-				break;
-			case CONS::ORIENTATION:
-				d.ori = accumulate_dial(d.ori, x.dial);
-				break;
-		}
-	}
+	auto com_match = match_constraint("complexity", s.constraint);
+	auto siz_match = match_constraint("size", s.constraint);
+	auto ori_match = match_constraint("orientation", s.constraint);
+	auto pal_match = match_constraint("palette", s.constraint);
+	d.com = distribution(com_match)(ws->rand);
+	d.siz = distribution(siz_match)(ws->rand);
+	d.ori = distribution(ori_match)(ws->rand);
+	for(auto p : pal_match) { palette_mask |= p.mask; }
 	
 	// Choose a palette and color!
 	Palette pal = pick_palette(ws, palette_mask);

@@ -7,21 +7,11 @@
 
 #ifndef constraints_h
 #define constraints_h
-enum class DISTANCE
+enum DIST : uint32_t
 {
-	CLOSE = (1<<0),
-	FAR = (1<<1),
-	LESS = (1<<2),
-	GREATER = (1<<3)
-};
-
-enum CONS : uint32_t
-{
-	SIZE,
-	ORIENTATION,
-	COMPLEXITY,
-	PERTURBATION,
-	GLUE // The constraint that ends, for future addition!
+	DDELTA,
+	GAUSSIAN,
+	NONE // The constraint that ends, for future addition!
 };
 
 Constraint size(double size);
@@ -33,24 +23,10 @@ typedef struct match
 {
 	uint32_t i;
 	uint32_t type;
-	double dial;
 	uint32_t mask;
+	double dial;
 } Match;
 
-const std::map<std::string, uint32_t> global_cons_map
-{
-	{"size", (uint32_t)CONS::SIZE},
-	{"orientation", (uint32_t)CONS::ORIENTATION},
-	{"complexity", (uint32_t)CONS::COMPLEXITY},
-	{"perturbation", (uint32_t)CONS::PERTURBATION}
-};
-
-std::vector<Match> match_constraint(
-	std::map<std::string,uint32_t> map, std::vector<Constraint> cons);
-
-double accumulate_dial(double, double);
-double match_accumulate_dial(
-	uint32_t type,
-	std::map<std::string,uint32_t> map,
-	std::vector<Constraint> cons);
+std::vector<Match> match_constraint(std::string, std::vector<Constraint> cons);
+std::function<double(std::function<double()>)> distribution(std::vector<Match>);
 #endif

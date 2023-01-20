@@ -14,8 +14,8 @@ static Operator symmetry_operator
 	.name = "symmetry",
 	.cons =
 	{
-		{"complexity", CONS::COMPLEXITY},
-		{"orientation", CONS::ORIENTATION}
+		"complexity",
+		"orientation"
 	},
 	.layout = symmetry
 };
@@ -25,8 +25,8 @@ static Operator figure_and_ground_operator
 	.name = "figure_and_ground",
 	.cons =
 	{
-		{"complexity", CONS::COMPLEXITY},
-		{"size", CONS::SIZE}
+		"complexity",
+		"size"
 	},
 	.layout = figureandground
 };
@@ -36,8 +36,8 @@ static Operator focal_point_operator
 	.name = "focal_point",
 	.cons =
 	{
-		{"complexity", CONS::COMPLEXITY},
-		{"orientation", CONS::ORIENTATION}
+		"complexity",
+		"orientation"
 	},
 	.layout = focal
 };
@@ -47,10 +47,10 @@ static Operator gradient_operator
 	.name = "gradient",
 	.cons = 
 	{
-		{"complexity", CONS::COMPLEXITY},
-		{"orientation", CONS::ORIENTATION},
-		{"size", CONS::SIZE},
-		{"palette", CONS_PALETTE::PALETTE}
+		"complexity",
+		"orientation",
+		"size",
+		"palette"
 	},
 	.layout = gradient
 };

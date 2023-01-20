@@ -14,11 +14,11 @@
 // DEBUG
 #include <iostream>
 
-int decide_symmetry(Segment s, Operator op)
+int decide_symmetry(Workspace* ws, Segment s, Operator op)
 {
 	// Decide upon a symmetry
-	double sym;
-	sym = match_accumulate_dial(CONS::COMPLEXITY, op.cons, s.constraint);
+	auto cmpmatch = match_constraint("complexity", s.constraint);
+	double sym = distribution(cmpmatch)(ws->rand);
 	return int(sym * 8);
 }
 
@@ -31,7 +31,7 @@ std::vector<Segment> cut_mark_symmetry(Workspace* ws, Operator op)
 		uint32_t mark = ws->op_cache[op][s];
 		if(mark == 1) { continue; }
 		// Check if segment is complex enough
-		if(decide_symmetry(s, op) < 2) { continue; }
+		if(decide_symmetry(ws, s, op) < 2) { continue; }
 		ret.push_back(s);
 	}
 	// Sort by maximum area
@@ -114,7 +114,7 @@ Callback symmetry(Workspace* ws, Operator op)
 		{
 			// If we proceed, mark this segment as used
 			// ws->op_cache[op][*max_seg] = 1;
-			int N = decide_symmetry(max_seg, op);
+			int N = decide_symmetry(ws, max_seg, op);
 			printf("SYMMETRY (%d)...\n",N);
 			symmetrylambda(ws, op, max_seg, N);
 		}

@@ -30,6 +30,7 @@ class Workspace;
 typedef struct constraint
 {
 	std::string name;
+	uint32_t type;
 	uint32_t mask;
 	double dial;
 } Constraint;
@@ -76,8 +77,8 @@ typedef struct callback
 typedef struct op
 {
 	const std::string name;
-	// The constraints it uses, both name and mask for different types
-	const std::map<std::string, uint32_t> cons;
+	// The constraints it uses for different types
+	const std::set<std::string> cons;
 	std::function<Callback(Workspace*,struct op)> layout;
 } Operator;
 
@@ -114,8 +115,8 @@ typedef struct brush
 	const std::string name;
 	// The prescidence of the brush
 	double priority;
-	// The constraints it uses, both name and mask for different types
-	const std::map<std::string, uint32_t> cons;
+	// The constraints it uses
+	const std::set<std::string> cons;
 	// The actual drawing function
 	std::function<Callback(Workspace*, struct segment, struct brush)> draw;
 } Brush;

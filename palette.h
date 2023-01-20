@@ -8,11 +8,6 @@
 
 #ifndef palette_h
 #define palette_h
-enum CONS_PALETTE : uint32_t
-{
-	PALETTE = CONS::GLUE
-};
-
 enum class palette : uint32_t
 {
 	RAND = (1 << 0),

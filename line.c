@@ -144,16 +144,17 @@ Callback line(Workspace* ws, Segment s, Brush b)
 	Color color = pick_color(ws, &palette, s.constraint);
 
 	// Create the costate for the lambda
+	auto sizmatch = match_constraint("size",s.constraint);
+	auto cmpmatch = match_constraint("complexity",s.constraint);
+	auto orimatch = match_constraint("orientation", s.constraint);
+
 	LINE_STATE state = 
 	{
 		.brush = b,
 		.color = color,
-		.siz = match_accumulate_dial(
-			CONS::SIZE, b.cons, s.constraint),
-		.cmp = match_accumulate_dial(
-			CONS::COMPLEXITY, b.cons, s.constraint),
-		.ori = match_accumulate_dial(
-			CONS::ORIENTATION, b.cons, s.constraint),
+		.siz = distribution(sizmatch)(ws->rand),
+		.cmp = distribution(cmpmatch)(ws->rand),
+		.ori = distribution(orimatch)(ws->rand)
 	};
 
 	// Find the match

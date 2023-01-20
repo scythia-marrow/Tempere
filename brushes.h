@@ -14,10 +14,10 @@ static Brush shape_brush
 	.priority = 0.7,
 	.cons = 
 	{
-		{"palette", CONS_PALETTE::PALETTE},
-		{"complexity", CONS::COMPLEXITY},
-		{"size", CONS::SIZE},
-		{"orientation", CONS::ORIENTATION}
+		"palette",
+		"complexity",
+		"size",
+		"orientation"
 	},
 	.draw = shape
 };
@@ -28,8 +28,8 @@ static Brush solid_brush
 	.priority = 1.0,
 	.cons =
 	{
-		{"palette", CONS_PALETTE::PALETTE},
-		{"complexity", CONS::COMPLEXITY}
+		"palette",
+		"complexity"
 	},
 	.draw = solid
 };
@@ -40,10 +40,10 @@ static Brush line_brush
 	.priority = 0.1,
 	.cons =
 	{
-		{"palette", CONS_PALETTE::PALETTE},
-		{"complexity", CONS::COMPLEXITY},
-		{"size", CONS::SIZE},
-		{"orientation", CONS::ORIENTATION}
+		"palette",
+		"complexity",
+		"size",
+		"orientation"
 	},
 	.draw = line
 };
