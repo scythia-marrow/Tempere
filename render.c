@@ -198,6 +198,7 @@ std::vector<Segment> Layer::unmappedSegment(
 
 void Layer::updateConstraint(Segment seg, std::vector<Constraint> con)
 {
+	printf("UPDATING WITH %d\n",con.size());
 	uint32_t sid = segMap[seg.sid];
 	constraint[sid] = con;
 }
@@ -281,7 +282,7 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 			<< " " << layout.usable
 			<< " " << layout.match
 			<< " " << layout.priority << std::endl;
-		*/
+		//*/
 		z++;
 	}
 	// std::cout << "CAND " << cand.size() << std::endl;
@@ -301,7 +302,7 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 bool Workspace::addBrush(Brush b) { brush.push_back(b); return true; }
 bool Workspace::addOperator(Operator op) { oper.push_back(op); return true; }
 bool Workspace::addConstraint(Constraint con)
-{ 
+{
 	constraint.push_back(con);
 	// Distribute the constraint to all segments in all layers
 	for(auto s : cut())
@@ -518,7 +519,7 @@ bool Workspace::render()
 void init_constraints(Workspace* ws)
 {
 	// Constraints are found in the constraints.h file
-	// We want
+	// We want a better way to init these
 	std::vector<Constraint> constraint =
 	{
 		palette((uint32_t)palette::RAND,0.0),
@@ -537,9 +538,9 @@ void init_workspace(Workspace* ws)
 	std::vector<Operator> oper = 
 	{
 		symmetry_operator,
-		figure_and_ground_operator,
-		focal_point_operator,
-		gradient_operator
+		//figure_and_ground_operator,
+		//focal_point_operator,
+		//gradient_operator
 	};
 	for(auto op : oper) { ws->addOperator(op); }
 	// Brushes are found in the brushes.h file!
@@ -550,6 +551,8 @@ void init_workspace(Workspace* ws)
 		line_brush
 	};
 	for(auto br : brush) { ws->addBrush(br); }
+	// Initialize the constraints
+	init_constraints(ws);
 }
 
 // TODO: binary search (probably last optimization to do xD)
