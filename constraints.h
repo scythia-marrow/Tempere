@@ -11,13 +11,52 @@ enum DIST : uint32_t
 {
 	DDELTA,
 	GAUSSIAN,
-	NONE // The constraint that ends, for future addition!
+	NONE // This constraint has no reasonable definition of a metric
 };
 
-Constraint size(double size);
-Constraint complexity(double complexity);
-Constraint orientation(double orient);
-Constraint perturbation(double delta);
+class ConstraintFactory
+{
+	protected:
+		enum INITTYPE : uint32_t
+		{
+			MASK,
+			DIAL,
+			BOTH
+		};
+		std::string name;
+		INITTYPE type;
+		std::vector<DIST> dist;
+		std::vector<uint32_t> mask;
+	public:
+		Constraint create();
+		Constraint create(double);
+		Constraint create(double, std::function<double()>);
+};
+
+
+class SizeFactory : public ConstraintFactory
+{
+	public:
+		SizeFactory();
+};
+
+class ComplexityFactory : public ConstraintFactory
+{
+	public:
+		ComplexityFactory();
+};
+
+class OrientationFactory : public ConstraintFactory
+{
+	public:
+		OrientationFactory();
+};
+
+class PerturbationFactory : public ConstraintFactory
+{
+	public:
+		PerturbationFactory();
+};
 
 typedef struct match
 {

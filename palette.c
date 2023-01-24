@@ -77,10 +77,18 @@ Color color_rand(Workspace* ws)
 	return color_hex(hexcode);
 }
 
-Constraint palette(uint32_t mask, double shade)
+PaletteFactory::PaletteFactory()
 {
-	Constraint con {"palette", mask, shade};
-	return con;
+	name = "palette";
+	type = INITTYPE::MASK;
+	dist = {};
+	mask = {
+		(uint32_t)palette::RAND,
+		(uint32_t)palette::REDS,
+		(uint32_t)palette::BLUES,
+		(uint32_t)palette::GREENS,
+		(uint32_t)palette::TRANS
+	};
 }
 
 Palette from_string_vecs(

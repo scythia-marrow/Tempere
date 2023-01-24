@@ -10,28 +10,77 @@
 #include "render.h"
 #include "constraints.h"
 
-Constraint size(double size)
+SizeFactory::SizeFactory()
 {
-	Constraint con {"size", uint32_t(DIST::DDELTA), 0, size};
-	return con;
+	name = "size";
+	type = INITTYPE::DIAL;
+	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	mask = {};
 }
 
-Constraint orientation(double orient)
+ComplexityFactory::ComplexityFactory()
 {
-	Constraint con {"orientation", uint32_t(DIST::DDELTA), 0, orient};
-	return con;
+	name = "complexity";
+	type = INITTYPE::DIAL;
+	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	mask = {};
 }
 
-Constraint complexity(double comp)
+OrientationFactory::OrientationFactory()
 {
-	Constraint con {"complexity", uint32_t(DIST::DDELTA), 0, comp};
-	return con;
+	name = "orientation";
+	type = INITTYPE::DIAL;
+	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	mask = {};
 }
 
-Constraint perturbation(double delta)
+PerturbationFactory::PerturbationFactory()
 {
-	Constraint con {"perturbation", uint32_t(DIST::DDELTA), 0, delta};
-	return con;
+	name = "perturbation";
+	type = INITTYPE::DIAL;
+	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	mask = {};
+}
+
+
+Constraint ConstraintFactory::create()
+{
+	switch(type)
+	{
+		case INITTYPE::DIAL:
+			if(dist.size() < 1)
+			{
+				return { name, DIST::DDELTA, (uint32_t)-1, 0.5};
+			}
+			return { name, dist[0], 0, 0.5 };
+		break;
+		case INITTYPE::MASK:
+			if(mask.size() < 1)
+			{
+				return { name, DIST::NONE, 0, -1.0 };
+			}
+			return { name, DIST::NONE, mask[0], -1.0 };
+		break;
+		case INITTYPE::BOTH:
+			if(mask.size() < 1 || dist.size() < 1)
+			{
+				return { name, DIST::NONE, 0, 0.5};
+			}
+			return { name, dist[0], mask[0], 0.5 };
+		break;
+	};
+	return {"", DIST::NONE, (uint32_t)-1, -1.0 };
+}
+
+
+Constraint ConstraintFactory::create(double zip)
+{
+	return create();
+}
+
+Constraint ConstraintFactory::create(double zip, std::function<double()> rand)
+{
+	return create();
 }
 
 std::function<double(std::function<double()>)> distribution(

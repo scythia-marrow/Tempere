@@ -198,7 +198,6 @@ std::vector<Segment> Layer::unmappedSegment(
 
 void Layer::updateConstraint(Segment seg, std::vector<Constraint> con)
 {
-	printf("UPDATING WITH %d\n",con.size());
 	uint32_t sid = segMap[seg.sid];
 	constraint[sid] = con;
 }
@@ -304,6 +303,7 @@ bool Workspace::addOperator(Operator op) { oper.push_back(op); return true; }
 bool Workspace::addConstraint(Constraint con)
 {
 	constraint.push_back(con);
+	printf("ADDING CONSTRAINT %s, %d, %f\n",con.name, con.mask, con.dial);
 	// Distribute the constraint to all segments in all layers
 	for(auto s : cut())
 	{
@@ -520,15 +520,17 @@ void init_constraints(Workspace* ws)
 {
 	// Constraints are found in the constraints.h file
 	// We want a better way to init these
-	std::vector<Constraint> constraint =
+	std::vector<ConstraintFactory> constraint =
 	{
-		palette((uint32_t)palette::RAND,0.0),
-		complexity(0.5),
-		size(0.5),
-		perturbation(0.5),
-		orientation(0.5)
+		SizeFactory(),
+		ComplexityFactory(),
+		OrientationFactory(),
+		PerturbationFactory(),
+		// Add more stuff here
+		PaletteFactory()
+		
 	};
-	for(auto con : constraint) { ws->addConstraint(con); }
+	for(auto con : constraint) { ws->addConstraint(con.create()); }
 }
 
 

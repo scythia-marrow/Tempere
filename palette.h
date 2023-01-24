@@ -35,7 +35,11 @@ typedef struct pallete_t
 
 Color color_hex(std::string hex);
 
-Constraint palette(uint32_t number, double shade);
+class PaletteFactory : public ConstraintFactory
+{
+	public:
+		PaletteFactory();
+};
 
 Palette pick_palette(Workspace*, uint32_t);
 Color pick_color(Workspace*, Palette*, std::vector<Constraint>);
