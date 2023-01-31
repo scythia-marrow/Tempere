@@ -28,9 +28,8 @@ class ConstraintFactory
 		std::vector<DIST> dist;
 		std::vector<uint32_t> mask;
 	public:
-		Constraint create();
-		Constraint create(double);
-		Constraint create(double, std::function<double()>);
+		virtual Constraint create();
+		virtual Constraint create(double, std::function<double()>);
 };
 
 

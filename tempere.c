@@ -94,6 +94,16 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 	};
 	lineshatter(glass,shard);
 	lineshatter(shard,glass);
+	/*
+	printf("GRAPH\n\t");
+	for(auto n : node)
+	{
+		printf("(%f,%f):\n\t\t",n.x,n.y);
+		for(auto e : graph[ensureID(n)]) { printf("(%f,%f) ",e.x,e.y); }
+		printf("\n\t");
+	}
+	printf("\n");
+	//*/
 }
 
 Optional<PathState> chain::stateDel(PathState S, Vertex next)
@@ -103,6 +113,8 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 	// Find next novel vertex
 	// Optional<Vertex> prev = S.previous;
 	// Check if a loop has occured, need full edge not just current vrt
+	// TODO: The bug is here! We need to occasionally backtrack, but never
+	// bounce back beyond the start point...
 	uint32_t pathlen = S.path.size();
 	std::vector<Vertex> P = {};
 	for(int tid = (pathlen-1); tid >= 0; tid--)
@@ -112,9 +124,20 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 		P.push_back(S.path[tid]);
 		if(eq(S.current,S.path[tid]) && eq(S.previous.dat,S.path[hid]))
 		{
-			if(geom::eq(geom::signed_area(P),0.0)) { continue; }
+			// This is the problem, we allow a backtrace if we
+			// are on a line, but that's fucking weird?
+			//if(geom::eq(geom::signed_area(P),0.0)) { continue; }
 			ret.action = chain::PathState::DONE;
 			ret.path = P;
+			
+			if(geom::eq(next,{15.794229,0.0}))
+			{
+				printf("NEWPATH!\n\t");
+				for(auto r : ret.path)
+				{
+					printf("(%f,%f) ",r.x,r.y);
+				}
+			}
 			return {true, ret};
 		}
 	}
@@ -151,20 +174,6 @@ Polygon chain::weave(const chain::ChainState current)
 	// If the paths are the same we have a disconnected segment
 	Polygon left = current.left.path;
 	Polygon right = current.right.path;
-	/*if(geom::winding_number(inpoint(left).dat,left) == 1)
-	{
-		printf("LEFT\n\t");
-		for(auto l : left) { printf("(%f,%f) -- ",l.x,l.y); }
-		printf("\n");
-	}
-	if(geom::winding_number(inpoint(right).dat,right) == -1)
-	{
-		printf("RIGHT\n\t");
-		for(auto r : right) { printf("(%f,%f) -- ",r.x,r.y); }
-		printf("\n");
-	}*/
-	// If both ways are equivalent we just return
-	// if(geom::eq(left,right)) { return { left }; }
 	// Left handed turns match with positive (counterclockwise) rotation
 	auto minpolycheck = [=](Polygon poly, int32_t wn) -> bool
 	{
@@ -174,15 +183,7 @@ Polygon chain::weave(const chain::ChainState current)
 	if(minpolycheck(left,1)) { return left; }
 	if(minpolycheck(right,-1)) { return right; }
 	printf("WEAVE ERROR!\n");
-	// assert(false);
 	// TODO: ERROR HANDLING. If there is no polygon found we fucked up
-	/*printf("NODE\n\t");
-	for(auto n : node)
-	{
-		printf("(%f%f):\n\t\t",n.x,n.y);
-		for(auto e : graph[ensureID(n)]) { printf("(%f,%f) ",e.x,e.y); }
-		printf("\n\t");
-	}*/
 	printf("\n");
 	printf("LEFT %d\n\t",geom::winding_number(left,inpoint(left).dat));
 	for(auto l : left) { printf("(%f,%f) -- ",l.x,l.y); }
@@ -190,6 +191,7 @@ Polygon chain::weave(const chain::ChainState current)
 	printf("RIGHT %d\n\t",geom::winding_number(right,inpoint(right).dat));
 	for(auto r : right) { printf("(%f,%f) -- ",r.x,r.y); }
 	printf("\n");
+	assert(false);
 	return left;
 }
 
@@ -243,6 +245,17 @@ const std::vector<Vertex> chain::Chainshard::sortedPath(Edge edge)
 	};
 	// Sort the return vector
 	std::sort(ret.begin(),ret.end(),sortlambda);
+	// TODO: REMOVE DEBUG CODE!
+	for(auto v : ret)
+	{
+		if(isnan(anglelambda(v)))
+		{
+		printf("NAN STUFF\n\t");
+		for(auto v : ret) { printf("(%f,%f) -> (%f,%f) -> (%f,%f) %f\n\t",edge.head.x,edge.head.y,edge.tail.x,edge.tail.y,v.x,v.y,anglelambda(v)); }
+		printf("\n");
+		break;
+		}
+	}
 	return ret;
 }
 
@@ -288,6 +301,8 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		}
 		return P;
 	};
+	// DEBUG SET
+	std::set<Vertex,geom::vrtcomp> debug; 
 	while(mark.size() < node.size() && b < 100)
 	{
 		Optional<Vertex> base = nextUnmarked(node,vectorThunk(mark));
@@ -300,10 +315,18 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		S.right = runpath(S.right,ChainState::HANDEDNESS::RIGHT);
 		// Then weave a polygon from the chain state
 		Polygon newpoly = weave(S);
+		// TODO: REMOVE DEBUG BREAKPOINT
+		// Check if the newly created polygon was already created. If so, we fucked up and it's a bug I need to fix.
+		if(debug.count(base.dat))
+		{
+		}
 		ret.push_back(newpoly);
+		if(debug.count(base.dat)) { return ret; }
+		debug.insert(base.dat);
 		// Create new marks for this polygon
 		for(auto v : newpoly) { mark.insert(v); }
 		b++;
+		if(b > 75) { printf("TOO MANY SEGS!"); assert(false); }
 	}
 	return ret;
 }

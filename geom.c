@@ -107,6 +107,9 @@ double geom::angle(Vector a, Vector b)
 	if(eq(mag_sum,0.0)) { return 0.0; }
 	double dot_sum = dot(a,b);
 	double quot = dot_sum / mag_sum;
+	if(eq(quot,1.0)) { return 0.0; }
+	if(eq(quot,-1.0)) { return M_PI; }
+	if(quot > 1.0 || quot < -1.0) { printf("DOMAIN ERROR! %f\n", quot); }
 	return acos(quot);
 }
 
@@ -117,10 +120,16 @@ double geom::dirangle(Vertex a, Vertex b, Vertex c)
 	// The first vector is from b -> a, second is from b -> c
 	Vector head = vec(b,a);
 	Vector tail = vec(b,c);
-	// Get the Z cross product component to ensure this is righthanded
-	double z = (head.x * tail.y) - (head.y * tail.x);
-	if(eq(z,0.0)) { return angle(head,tail); }
-	return z > 0.0 ? angle(head,tail) : angle(head,tail) + M_PI;
+	// Get the determinant to determine handedness
+	double det = (a.x - b.x)*(c.y - b.y) - (a.y - b.y)*(c.x - b.x);
+	if(eq(det,0.0)) { return angle(head,tail); }
+	// TODO: this should probably be <, wtf is going on that > works better
+	/*if(eq(b,{5.886400,6.688709}))
+	{
+		printf("DET %f\n", det);
+	}//*/
+	// return z > 0.0 ? angle(head,tail) : angle(head,tail) + M_PI;
+	return det > 0.0 ? angle(head,tail) : (2.0 * M_PI) - angle(head,tail);
 }
 
 double geom::dirangle(Edge e, Vertex c)
@@ -351,7 +360,7 @@ bool geom::interior(Polygon out, Polygon in) { return interior(out,in,true); }
 bool geom::on_edge(Edge e, Vertex v)
 {
 	double angle = dirangle(e, v);
-	if(!eq(angle,0.0)) { return false; }
+	if(!(eq(angle,0.0) || eq(angle,(M_PI * 2.0)))) { return false; }
 	if(eq(e.head,v) || eq(e.tail,v)) { return true; }
 	double mH = magnitude(vec(e.head,v));
 	double mT = magnitude(vec(e.tail,v));

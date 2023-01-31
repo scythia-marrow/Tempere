@@ -55,21 +55,21 @@ std::vector<Edge> radial_segments(Segment max_seg, Vertex mid, int N)
 		direction.push_back(dir);
 	}
 	// For each directon find radial intersections
-	std::vector<Edge> ret;
+	std::set<Vector,geom::vrtcomp> inter = {};
 	for(auto dir : direction)
 	{
-		// TODO: fix convex / complex case
-		int count = 0;
 		for(auto e : edgeThunk(max_seg.boundary))
 		{
 			Optional<Vertex> intO = intersect_ray_line(e,mid,dir);
-			if(intO.is)
+			if(intO.is && !eq(intO.dat,mid))
 			{
-				ret.push_back(Edge{mid,intO.dat});
-				count++;
+				inter.insert(intO.dat);
 			}
 		}
 	}
+	// Return the edges
+	std::vector<Edge> ret = {};
+	for(auto i : inter) { ret.push_back({mid,i}); }
 	return ret;
 }
 

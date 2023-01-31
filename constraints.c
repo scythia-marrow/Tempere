@@ -73,14 +73,37 @@ Constraint ConstraintFactory::create()
 }
 
 
-Constraint ConstraintFactory::create(double zip)
-{
-	return create();
-}
-
+// Construct a random constraint given a zipfs slot and a rng
+// Higher zipfs values are allowed more variation from the standard
 Constraint ConstraintFactory::create(double zip, std::function<double()> rand)
 {
-	return create();
+	auto avgdistribution = [=](double a, double b) mutable -> double
+	{
+		double lownum = a * rand();
+		double highnum = b + (1.0 - b) * rand();
+		double avgnum = lownum + (highnum - lownum) * rand();
+		return avgnum;
+	};
+	// Select a random distance function with EV of the zipfs
+	uint32_t distidx = uint32_t(floor(avgdistribution(zip,zip)));
+	// Also do that for the mask
+	uint32_t maskidx = uint32_t(floor(avgdistribution(zip,zip)));
+	// For the dial make an average around the middle, biased by zip
+	double dial = avgdistribution(0.5-zip,0.5+zip);
+	// Now return it
+	switch(type)
+	{
+		case INITTYPE::DIAL:
+			return { name, dist[distidx], 0, dial };
+		break;
+		case INITTYPE::MASK:
+			return { name, DIST::NONE, mask[maskidx], -1.0 };
+		break;
+		case INITTYPE::BOTH:
+			return { name, dist[distidx], mask[maskidx], dial };
+		break;
+	}
+	return {"", DIST::NONE, (uint32_t)-1, -1.0 };
 }
 
 std::function<double(std::function<double()>)> distribution(

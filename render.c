@@ -213,7 +213,13 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary, double 
 	// This is bonkers but at least you CAN do bonkers stuff in C++
 	std::default_random_engine gen;
 	std::uniform_real_distribution<double> dis(0.0, 1.0);
-	gen.seed(std::chrono::system_clock::now().time_since_epoch().count());
+	auto S = std::chrono::system_clock::now().time_since_epoch().count();
+	std::cout << "SEED" << S << std::endl;
+	//uint64_t seed = 1674612207756555824; // 3 sym seed
+	uint64_t seed = 1675127355531598815; //TODO: Fix this 5 sym seed
+	//uint64_t seed = 1675127258027720508; //TODO: Fix this 6 sym seed
+	//uint64_t seed = S;
+	gen.seed(seed);
 	rand = [=]() mutable -> double { return dis(gen); };
 	// Setup the background layer
 	background = addLayer(0,boundary);
@@ -303,7 +309,7 @@ bool Workspace::addOperator(Operator op) { oper.push_back(op); return true; }
 bool Workspace::addConstraint(Constraint con)
 {
 	constraint.push_back(con);
-	printf("ADDING CONSTRAINT %s, %d, %f\n",con.name, con.mask, con.dial);
+	printf("ADDING CONSTRAINT %s, %d, %f\n",con.name.c_str(), con.mask, con.dial);
 	// Distribute the constraint to all segments in all layers
 	for(auto s : cut())
 	{
@@ -530,7 +536,12 @@ void init_constraints(Workspace* ws)
 		PaletteFactory()
 		
 	};
-	for(auto con : constraint) { ws->addConstraint(con.create()); }
+	auto zipfs = zipfs_weight(ws, constraint.size());
+	// Make a zipfs for each item
+	for(uint32_t i = 0; i < constraint.size(); i++)
+	{
+		ws->addConstraint(constraint[i].create(zipfs[i],ws->rand));
+	}
 }
 
 
@@ -613,9 +624,10 @@ void test_render(std::string filename)
 	// Initialize operators and brushes
 	init_workspace(draft);
 	// Run the tempere algorithm to completion
-	draft->runTempere(-1);
-	// draft->runTempere(2);
-	// draft->runTempere(110);
+	//draft->runTempere(-1);
+	//draft->runTempere(8);
+	//draft->runTempere(6);
+	draft->runTempere(110);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.
