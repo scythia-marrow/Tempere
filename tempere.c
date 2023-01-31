@@ -113,8 +113,6 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 	// Find next novel vertex
 	// Optional<Vertex> prev = S.previous;
 	// Check if a loop has occured, need full edge not just current vrt
-	// TODO: The bug is here! We need to occasionally backtrack, but never
-	// bounce back beyond the start point...
 	uint32_t pathlen = S.path.size();
 	std::vector<Vertex> P = {};
 	for(int tid = (pathlen-1); tid >= 0; tid--)
@@ -124,20 +122,10 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 		P.push_back(S.path[tid]);
 		if(eq(S.current,S.path[tid]) && eq(S.previous.dat,S.path[hid]))
 		{
-			// This is the problem, we allow a backtrace if we
-			// are on a line, but that's fucking weird?
-			//if(geom::eq(geom::signed_area(P),0.0)) { continue; }
+			// TODO: check if this case is truly superfluous
+			// if(geom::eq(geom::signed_area(P),0.0)) { continue; }
 			ret.action = chain::PathState::DONE;
 			ret.path = P;
-			
-			if(geom::eq(next,{15.794229,0.0}))
-			{
-				printf("NEWPATH!\n\t");
-				for(auto r : ret.path)
-				{
-					printf("(%f,%f) ",r.x,r.y);
-				}
-			}
 			return {true, ret};
 		}
 	}
@@ -245,17 +233,6 @@ const std::vector<Vertex> chain::Chainshard::sortedPath(Edge edge)
 	};
 	// Sort the return vector
 	std::sort(ret.begin(),ret.end(),sortlambda);
-	// TODO: REMOVE DEBUG CODE!
-	for(auto v : ret)
-	{
-		if(isnan(anglelambda(v)))
-		{
-		printf("NAN STUFF\n\t");
-		for(auto v : ret) { printf("(%f,%f) -> (%f,%f) -> (%f,%f) %f\n\t",edge.head.x,edge.head.y,edge.tail.x,edge.tail.y,v.x,v.y,anglelambda(v)); }
-		printf("\n");
-		break;
-		}
-	}
 	return ret;
 }
 
@@ -316,7 +293,8 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		// Then weave a polygon from the chain state
 		Polygon newpoly = weave(S);
 		// TODO: REMOVE DEBUG BREAKPOINT
-		// Check if the newly created polygon was already created. If so, we fucked up and it's a bug I need to fix.
+		// Check if the newly created polygon was already created.
+		// If so, we fucked up and it's a bug I need to fix.
 		if(debug.count(base.dat))
 		{
 		}

@@ -29,7 +29,7 @@ class ConstraintFactory
 		std::vector<uint32_t> mask;
 	public:
 		virtual Constraint create();
-		virtual Constraint create(double, std::function<double()>);
+		virtual Constraint create(double, std::function<double()>&);
 };
 
 

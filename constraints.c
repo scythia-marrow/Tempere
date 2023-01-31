@@ -75,9 +75,9 @@ Constraint ConstraintFactory::create()
 
 // Construct a random constraint given a zipfs slot and a rng
 // Higher zipfs values are allowed more variation from the standard
-Constraint ConstraintFactory::create(double zip, std::function<double()> rand)
+Constraint ConstraintFactory::create(double zip, std::function<double()> &rand)
 {
-	auto avgdistribution = [=](double a, double b) mutable -> double
+	auto avgdistribution = [&](double a, double b) mutable -> double
 	{
 		double lownum = a * rand();
 		double highnum = b + (1.0 - b) * rand();
