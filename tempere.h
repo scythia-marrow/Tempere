@@ -35,6 +35,8 @@ namespace chain
 			Chainshard();
 			const std::vector<Vertex> getNode();
 			const std::set<Vertex,geom::vrtcomp> getMark();
+			// Find unique vertexes of a polygon
+			const std::set<Vertex,geom::vrtcomp> unique(Polygon);
 			// Sort a path just by angle
 			const std::vector<Vertex> sortedPath(Vertex);
 			// Sort a path by signed angle from an edge

@@ -142,6 +142,19 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
 	printf("Shattered %d into %d\n",shard.size(),shatter.size());
+	// TODO: remove debug stuff
+	if(shard.size() == shatter.size())
+	{
+		for(auto p : shatter)
+		{
+			printf("\n\t");
+			for(auto v : p.vid)
+			{
+				printf("(%f,%f) ",vertex[v].x,vertex[v].y);
+			}
+			printf("\n");
+		}
+	}
 	for(auto p : shatter)
 	{	
 		std::vector<Vertex> perimiter;

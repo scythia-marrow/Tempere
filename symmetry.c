@@ -81,6 +81,7 @@ void symmetrylambda(Workspace* ws, Operator op, Segment max_seg, int N)
 	std::vector<Edge> lines = radial_segments(max_seg, mid, N);
 	for(auto e : lines)
 	{
+		printf("SYM (%f,%f) -> (%f,%f)\n",e.head.x,e.head.y,e.tail.x,e.tail.y);
 		// Add segment with no mark
 		std::vector<Edge> line = {Edge{e.head,e.tail},{e.tail,e.head}};
 		ws->addSegment(op, layer, polygonThunk(line), 0);
