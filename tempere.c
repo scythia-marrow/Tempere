@@ -68,16 +68,6 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 		for(auto e : edgeThunk(p)) { if(geom::eq(edge,e)) { ret++; } }
 		return ret;
 	};
-	// Ensure degenerate edges are marked
-	auto ensuremark = [=](Polygon p, Edge edge) -> void
-	{
-		if(countedge(p, edge) > 1)
-		{
-			// TODO: this is just a test on a hunch
-			mark.insert(edge.head);
-			mark.insert(edge.tail);
-		}	
-	};
 	// Ensure nodes don't connect to duplicates or themselves
 	auto addlambda = [=](uint32_t h, uint32_t t) -> void
 	{
@@ -89,7 +79,6 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 		for(auto b : edgeThunk(base))
 		{
 			// Mark degenerate portions of the base
-			// ensuremark(base,b);
 			// For each edge get all intersection verticies, sorted
 			auto sortBase = sortInter(b,chisel);
 			// Now add them all to the graph
@@ -102,23 +91,27 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 			}
 		}
 	};
-	auto countcon = [=](std::set<Vertex,vrtcomp> neighbor) -> uint32_t
-	{
-		uint32_t ret = 0;
-		for(auto n : neighbor) { if(!mark.count(n)) { ret++; } }
-		return ret;
-	};
 	lineshatter(glass,shard);
 	lineshatter(shard,glass);
-	// Once we have our graph, mark degenerate nodes using a FP algorithm
+}
+
+const std::set<Vertex,vrtcomp> chain::Chainshard::fixedMark()
+{
+	std::set<Vertex,vrtcomp> ret = {};
 	std::set<Vertex,vrtcomp> fixedmark = {};
+	auto countcon = [=](std::set<Vertex,vrtcomp> neighbor) -> uint32_t
+	{
+		uint32_t count = 0;
+		for(auto n : neighbor) { if(!ret.count(n)) { count++; } }
+		return count;
+	};
 	do
 	{
-		for(auto m : fixedmark) { mark.insert(m); }
+		for(auto m : fixedmark) { ret.insert(m); }
 		fixedmark = {};
 		for(auto n : node)
 		{
-			if(mark.count(n)) { continue; }
+			if(ret.count(n)) { continue; }
 			uint32_t con = countcon(graph[ensureID(n)]);
 			if(con == 1) {
 				printf("DAFUQ???!?? (%f,%f)\n",n.x,n.y);
@@ -128,17 +121,7 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 		printf("FIXEDMARKS: %d\n",fixedmark.size());
 		for(auto fm : fixedmark) { printf("(%f,%f) ",fm.x,fm.y); }
 	} while(fixedmark.size() > 0);
-	printf("DEGEN MARKS: %d\n",mark.size());
-	/*
-	printf("GRAPH\n\t");
-	for(auto n : node)
-	{
-		printf("(%f,%f):\n\t\t",n.x,n.y);
-		for(auto e : graph[ensureID(n)]) { printf("(%f,%f) ",e.x,e.y); }
-		printf("\n\t");
-	}
-	printf("\n");
-	//*/
+	return ret;
 }
 
 Optional<PathState> chain::stateDel(PathState S, Vertex next)
@@ -152,10 +135,9 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 	std::vector<Vertex> P = {};
 	for(int tid = (pathlen-1); tid >= 0; tid--)
 	{
-		if(!S.previous.is) { break; }
 		uint32_t hid = (pathlen + tid - 1) % pathlen;
 		P.push_back(S.path[tid]);
-		if(eq(S.current,S.path[tid]) && eq(S.previous.dat,S.path[hid]))
+		if(eq(S.current,S.path[tid]) && eq(S.previous,S.path[hid]))
 		{
 			// TODO: check if this case is truly superfluous
 			// if(geom::eq(geom::signed_area(P),0.0)) { continue; }
@@ -166,7 +148,7 @@ Optional<PathState> chain::stateDel(PathState S, Vertex next)
 	}
 	// By default move along the path
 	ret.path.push_back(S.current);
-	ret.previous = {true, S.current};
+	ret.previous = S.current;
 	ret.current = next;
 	return {true, ret};
 }
@@ -218,29 +200,35 @@ Polygon chain::weave(const chain::ChainState current)
 	return left;
 }
 
-Optional<Vertex> chain::nextUnmarked(const Polygon node, const Polygon mark)
+const Optional<Edge> chain::Chainshard::nextUnmarked(
+	std::set<Vertex,vrtcomp> mark)
 {
-	// Construct the next chain by getting a random initial vertex
-	Optional<Vertex> base = { false, {0.0,0.0} };
-	for(auto v : node) { if(!geom::find(mark,v).is) { base = {true, v}; } }
+	// Construct the next chain by getting a random unmarked edge
+	Optional<Edge> base = { false, { {0.0,0.0}, {0.0,0.0} } };
+	for(auto v : node)
+	{
+		if(mark.count(v)) { continue; }
+		for(auto c : graph[ensureID(v)])
+		{
+			if(!mark.count(c)) { return { true, { v, c } }; }
+		}
+	}
 	return base;
 }
 
 const std::vector<Vertex> chain::Chainshard::getNode() { return node; }
-const std::set<Vertex,vrtcomp> chain::Chainshard::getMark() { return mark; }
 
 // TODO: we need to initialize the first path between two unmarked nodes
-ChainState chain::initChainState(Vertex vrt, std::vector<Vertex> mark)
+ChainState chain::initChainState(Edge e)
 {
 	ChainState ret;
-	ret.left = { chain::PathState::RUN, {}, vrt, {false,vrt} };
-	ret.right = { chain::PathState::RUN, {}, vrt, {false,vrt} };
-	ret.mark = mark;
+	ret.left = { chain::PathState::RUN, {e.head}, e.tail, e.head };
+	ret.right = { chain::PathState::RUN, {e.head}, e.tail, e.head };
 	return ret;
 }
 
 // Return all vertexes exclusive to this polygon
-const std::set<Vertex,vrtcomp> chain::Chainshard::unique(Polygon poly)
+const std::set<Vertex,vrtcomp> chain::Chainshard::unique(Polygon poly, std::set<Vertex,vrtcomp> mark)
 {
 	std::set<Vertex,vrtcomp> ret = {};
 	// Do not mark if there are multiple paths, otherwise mark
@@ -314,18 +302,17 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	if(node.size() == 0) { return {}; }
 	if(node.size() < 3) { return { node }; }
 	// Initialize the state for the chain algorithm
-	auto mark = shard->getMark();
+	auto mark = shard->fixedMark();
 	// Basic loop: find the next polygon then mark enclosed vertices
 	uint32_t b = 0;
 	// Lambda to process a single path to completion
-	auto runpath = [=](PathState P, ChainState::HANDEDNESS hand)
+	auto runpath = [=](PathState P, chain::HANDEDNESS hand)
 	{
 		uint32_t breaker = 0;
 		while(P.action == PathState::RUN && breaker < 100)
 		{
-			auto cand = shard->sortedPath(P.current,P.previous);
-			bool chirality = hand == ChainState::HANDEDNESS::RIGHT;
-			if(!P.previous.is) { chirality = true; }
+			auto cand = shard->sortedPath({P.previous,P.current});
+			bool chirality = hand == chain::HANDEDNESS::RIGHT;
 			Vertex next = chirality ? cand.back() : cand.front();
 			auto stateopt = stateDel(P,next);
 			if(stateopt.is) { P = stateopt.dat; }
@@ -336,14 +323,16 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	// DEBUG SET
 	while(mark.size() < node.size() && b < 100)
 	{
-		Optional<Vertex> base = nextUnmarked(node,vectorThunk(mark));
-		// Error if there is none, should never happen
-		if(!base.is) { printf("IMPOSSIBLE SITUATION\n"); return ret; }
+		Optional<Edge> base = shard->nextUnmarked(mark);
+		// If there is no unmarked edge we are done
+		if(!base.is) { return ret; }
+		// TODO: remove debug statement
+		printf("BASE IS (%f,%f) -> (%f,%f)\n",base.dat.head.x,base.dat.head.y,base.dat.tail.x,base.dat.tail.y);
 		// Construct the next chain state
-		ChainState S = initChainState(base.dat, {});
+		ChainState S = initChainState(base.dat);
 		// Run both paths to completion
-		S.left = runpath(S.left,ChainState::HANDEDNESS::LEFT);
-		S.right = runpath(S.right,ChainState::HANDEDNESS::RIGHT);
+		S.left = runpath(S.left,chain::HANDEDNESS::LEFT);
+		S.right = runpath(S.right,chain::HANDEDNESS::RIGHT);
 		// Then weave a polygon from the chain state
 		Polygon newpoly = weave(S);
 		// Add the new polygon
@@ -356,7 +345,7 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		for(auto m : mark) { printf("(%f,%f) ",m.x,m.y); }
 		printf("\n");
 
-		for(auto u : shard->unique(newpoly)) { mark.insert(u); }
+		for(auto u : shard->unique(newpoly,mark)) { mark.insert(u); }
 
 		printf("SIZE AFTER %d %d\n\t",mark.size(),node.size());
 		for(auto m : mark) { printf("(%f,%f) ",m.x,m.y); }

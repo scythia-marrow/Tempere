@@ -26,7 +26,6 @@ namespace chain
 	{
 		private:
 			std::vector<Vertex> node;
-			std::set<Vertex,geom::vrtcomp> mark;
 			std::map<uint32_t,std::set<Vertex,geom::vrtcomp>> graph;
 			//Optional<uint32_t> minUnmarkedSlope(uint32_t);
 			void shatter(const Polygon glass, const Polygon shard);
@@ -34,9 +33,13 @@ namespace chain
 		public:
 			Chainshard();
 			const std::vector<Vertex> getNode();
-			const std::set<Vertex,geom::vrtcomp> getMark();
+			const std::set<Vertex,geom::vrtcomp> fixedMark();
+			// Find the next unmarked edge
+			const Optional<Edge> nextUnmarked(
+				std::set<Vertex,geom::vrtcomp>);
 			// Find unique vertexes of a polygon
-			const std::set<Vertex,geom::vrtcomp> unique(Polygon);
+			const std::set<Vertex,geom::vrtcomp> unique(
+				Polygon,std::set<Vertex,geom::vrtcomp>);
 			// Sort a path just by angle
 			const std::vector<Vertex> sortedPath(Vertex);
 			// Sort a path by signed angle from an edge
@@ -56,20 +59,18 @@ namespace chain
 		ACTION action;
 		std::vector<Vertex> path;
 		Vertex current;
-		Optional<Vertex> previous;
+		Vertex previous;
 	};
 
 	struct ChainState
 	{	
-		enum HANDEDNESS { LEFT, RIGHT };
+		//enum HANDEDNESS { LEFT, RIGHT };
 		PathState left;
 		PathState right;
-		std::vector<Vertex> mark;
 	};
 
 	enum HANDEDNESS { LEFT, RIGHT };
-	ChainState initChainState(const Vertex base, const Polygon mark);
-	Optional<Vertex> nextUnmarked(const Polygon node, const Polygon mark);
+	ChainState initChainState(const Edge base);
 	Optional<PathState> stateDel(const PathState, Vertex);
 	Polygon weave(const ChainState);
 	std::vector<Polygon> chain(Chainshard* shard);
