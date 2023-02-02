@@ -142,24 +142,6 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
 	printf("Shattered %d into %d\n",shard.size(),shatter.size());
-	// TODO: remove debug stuff
-	if(shard.size() == shatter.size())
-	{
-		for(auto p : shatter)
-		{
-			printf("\n\t");
-			for(auto v : p.vid)
-			{
-				printf("(%f,%f) ",vertex[v].x,vertex[v].y);
-			}
-			printf("\n");
-		}
-	}
-	for(auto p : shatter)
-	{	
-		std::vector<Vertex> perimiter;
-		for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
-	}	
 	shard = shatter;
 	constraint = shattercon;
 	// Store a map of shards and their verticies for local relationships
@@ -228,8 +210,8 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary, double 
 	std::uniform_real_distribution<double> dis(0.0, 1.0);
 	auto S = std::chrono::system_clock::now().time_since_epoch().count();
 	std::cout << "SEED" << S << std::endl;
-	uint64_t seed = 1675128892961642292; // TODO: Fix this 6 sym seed
-	//uint64_t seed = S;
+	//uint64_t seed = 1675128892961642292;
+	uint64_t seed = S;
 	gen.seed(seed);
 	rand = [=]() mutable -> double { return dis(gen); };
 	// Setup the background layer
@@ -238,7 +220,6 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary, double 
 	ensureReadyLayout();
 	// ensureReadyRender(); TODO: organization
 	// Setup the most basic constraints
-	// TODO: interesting exploration of constraint space
 }
 
 Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
@@ -637,8 +618,8 @@ void test_render(std::string filename)
 	// Run the tempere algorithm to completion
 	//draft->runTempere(-1);
 	//draft->runTempere(8);
-	draft->runTempere(4);
-	//draft->runTempere(110);
+	//draft->runTempere(6);
+	draft->runTempere(110);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.

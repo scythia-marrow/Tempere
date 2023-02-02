@@ -9,6 +9,7 @@ using geom::Vector;
 using geom::Vertex;
 using geom::Polygon;
 using geom::vrtcomp;
+using geom::edgecomp;
 using opt::Optional;
 using chain::ChainState;
 using chain::PathState;
@@ -79,6 +80,14 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 		for(auto b : edgeThunk(base))
 		{
 			// Mark degenerate portions of the base
+			if(countedge(base,b) > 1)
+			{
+				if(eq(b,{{5.401924,9.000000},{8.0,9.0}}))
+				{
+					printf("MULTIPLE COUNTS OF INVALID!\n");
+				}
+				mark.insert(b);
+			}
 			// For each edge get all intersection verticies, sorted
 			auto sortBase = sortInter(b,chisel);
 			// Now add them all to the graph
@@ -93,35 +102,6 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 	};
 	lineshatter(glass,shard);
 	lineshatter(shard,glass);
-}
-
-const std::set<Vertex,vrtcomp> chain::Chainshard::fixedMark()
-{
-	std::set<Vertex,vrtcomp> ret = {};
-	std::set<Vertex,vrtcomp> fixedmark = {};
-	auto countcon = [=](std::set<Vertex,vrtcomp> neighbor) -> uint32_t
-	{
-		uint32_t count = 0;
-		for(auto n : neighbor) { if(!ret.count(n)) { count++; } }
-		return count;
-	};
-	do
-	{
-		for(auto m : fixedmark) { ret.insert(m); }
-		fixedmark = {};
-		for(auto n : node)
-		{
-			if(ret.count(n)) { continue; }
-			uint32_t con = countcon(graph[ensureID(n)]);
-			if(con == 1) {
-				printf("DAFUQ???!?? (%f,%f)\n",n.x,n.y);
-			}
-			if(con == 1) { fixedmark.insert(n); }
-		}
-		printf("FIXEDMARKS: %d\n",fixedmark.size());
-		for(auto fm : fixedmark) { printf("(%f,%f) ",fm.x,fm.y); }
-	} while(fixedmark.size() > 0);
-	return ret;
 }
 
 Optional<PathState> chain::stateDel(PathState S, Vertex next)
@@ -201,22 +181,23 @@ Polygon chain::weave(const chain::ChainState current)
 }
 
 const Optional<Edge> chain::Chainshard::nextUnmarked(
-	std::set<Vertex,vrtcomp> mark)
+	std::set<Edge,edgecomp> mark)
 {
 	// Construct the next chain by getting a random unmarked edge
 	Optional<Edge> base = { false, { {0.0,0.0}, {0.0,0.0} } };
 	for(auto v : node)
 	{
-		if(mark.count(v)) { continue; }
 		for(auto c : graph[ensureID(v)])
 		{
-			if(!mark.count(c)) { return { true, { v, c } }; }
+			Edge edge = {v,c};
+			if(!mark.count(edge)) { return { true, { v, c } }; }
 		}
 	}
 	return base;
 }
 
 const std::vector<Vertex> chain::Chainshard::getNode() { return node; }
+const std::set<Edge,edgecomp> chain::Chainshard::fixedMark() { return mark; }
 
 // TODO: we need to initialize the first path between two unmarked nodes
 ChainState chain::initChainState(Edge e)
@@ -224,32 +205,6 @@ ChainState chain::initChainState(Edge e)
 	ChainState ret;
 	ret.left = { chain::PathState::RUN, {e.head}, e.tail, e.head };
 	ret.right = { chain::PathState::RUN, {e.head}, e.tail, e.head };
-	return ret;
-}
-
-// Return all vertexes exclusive to this polygon
-const std::set<Vertex,vrtcomp> chain::Chainshard::unique(Polygon poly, std::set<Vertex,vrtcomp> mark)
-{
-	std::set<Vertex,vrtcomp> ret = {};
-	// Do not mark if there are multiple paths, otherwise mark
-	for(auto p : poly)
-	{
-		uint32_t pid = ensureID(p);
-		bool set = true;
-		if(graph[pid].size() < 3) { ret.insert(node[pid]); continue; }
-		for(auto v : graph[pid])
-		{
-			if(!mark.count(v)) { set = false; break; }
-		}
-		if(set) { ret.insert(node[pid]); }
-	}
-	// TODO: remove debug
-	printf("MARKING %d\n\t",ret.size());
-	for(auto r : ret)
-	{
-		printf("(%f,%f) ",r.x,r.y);
-	}
-	printf("\n");
 	return ret;
 }
 
@@ -303,6 +258,15 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	if(node.size() < 3) { return { node }; }
 	// Initialize the state for the chain algorithm
 	auto mark = shard->fixedMark();
+	if(mark.count({{5.401924,9.000000},{8.0,9.0}}))
+	{
+		printf("MARKED FROM BEGINNING!\n\t");
+		for(auto m : mark)
+		{
+			printf("(%f,%f) -> (%f,%f)", m.head.x,m.head.y,m.tail.x,m.tail.y);
+		}
+		printf("\n");
+	}
 	// Basic loop: find the next polygon then mark enclosed vertices
 	uint32_t b = 0;
 	// Lambda to process a single path to completion
@@ -321,36 +285,25 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		return P;
 	};
 	// DEBUG SET
-	while(mark.size() < node.size() && b < 100)
+	//while(mark.size() < node.size() && b < 100)
+	while(b < 100)
 	{
 		Optional<Edge> base = shard->nextUnmarked(mark);
 		// If there is no unmarked edge we are done
-		if(!base.is) { return ret; }
+		if(!base.is) { break; }
 		// TODO: remove debug statement
-		printf("BASE IS (%f,%f) -> (%f,%f)\n",base.dat.head.x,base.dat.head.y,base.dat.tail.x,base.dat.tail.y);
 		// Construct the next chain state
 		ChainState S = initChainState(base.dat);
 		// Run both paths to completion
 		S.left = runpath(S.left,chain::HANDEDNESS::LEFT);
 		S.right = runpath(S.right,chain::HANDEDNESS::RIGHT);
 		// Then weave a polygon from the chain state
+		// TODO: remove debug statement
 		Polygon newpoly = weave(S);
 		// Add the new polygon
 		ret.push_back(newpoly);
 		// Create new marks for this polygon
-		// THIS IS THE BUG LOCATION! TODO: need smarter marks
-		// We need to only mark locations not shared by others...
-		// TODO: remove debug statements
-		printf("SIZE BEFORE %d %d\n\t",mark.size(),node.size());
-		for(auto m : mark) { printf("(%f,%f) ",m.x,m.y); }
-		printf("\n");
-
-		for(auto u : shard->unique(newpoly,mark)) { mark.insert(u); }
-
-		printf("SIZE AFTER %d %d\n\t",mark.size(),node.size());
-		for(auto m : mark) { printf("(%f,%f) ",m.x,m.y); }
-		printf("\n");
-
+		for(auto u : edgeThunk(newpoly)) { mark.insert(u); }
 		b++;
 		if(b > 75) { printf("TOO MANY SEGS!"); assert(false); }
 	}

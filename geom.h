@@ -1,8 +1,11 @@
+// C imports
 #include <stdlib.h>
+#include <math.h>
 
 // C++ impoorts
 #include <cstdint>
 #include <vector>
+#include <tuple>
 
 // Module imports
 #include "optional.h"
@@ -92,10 +95,28 @@ namespace geom
 	struct vrtcomp {
 	bool operator() (const Vertex &a,const Vertex &b) const
 	{
-		Vector v = vec(a,b);
-		if(magnitude(v) < EPS) { return false; }
-		return magnitude(a) < magnitude(b); 
+		if(eq(a,b)) { return false; }
+		return std::tie(a.x,a.y) < std::tie(b.x,b.y);
 	}
-	};	
+	};
+	// A bidirectional weak ordering of edges! It's difficult math!
+	struct edgecomp {
+	bool operator() (const Edge &a, const Edge &b) const
+	{
+		if(eq(a,b)) { return false; }
+		if(!eq(arclen(a),arclen(b)))
+		{
+			return arclen(a) < arclen(b);
+		}
+		if(!eq(abs(slope(a)),abs(slope(b))))
+		{
+			return abs(slope(a)) < abs(slope(b));
+		}
+		// Last comparison is location of midpoint
+		Vertex midA = scale(add(a.head,a.tail),0.5);
+		Vertex midB = scale(add(b.head,b.tail),0.5);
+		return std::tie(midA.x,midA.y) < std::tie(midB.x,midB.y);
+	}
+	};
 };
 #endif
