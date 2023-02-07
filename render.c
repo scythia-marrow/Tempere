@@ -212,9 +212,9 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary, double 
 	std::uniform_real_distribution<double> dis(0.0, 1.0);
 	auto S = std::chrono::system_clock::now().time_since_epoch().count();
 	std::cout << "SEED" << S << std::endl;
-	//uint64_t seed = S;
+	uint64_t seed = S;
 	//uint64_t seed = 1675128892961642292;
-	uint64_t seed = 1675709149732672750;
+	//uint64_t seed = 1675709149732672750;
 	gen.seed(seed);
 	rand = [=]() mutable -> double { return dis(gen); };
 	// Setup the background layer

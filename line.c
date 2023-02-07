@@ -75,8 +75,8 @@ void linelambda(Workspace* ws, Segment sg, LINE_STATE s)
 	if(next < line_number(ws, sg, s)) { ws->br_cache[s.brush][sg] = next; }
 	else { return; }
 	// Draw another line if there are enough matches to justify them
-	auto start = geom::midpoint(sg.boundary);
-	auto end = geom::midpoint(vecThunk(ws->geomRel(sg))[next-1].boundary);
+	auto start = geom::centroid(sg.boundary);
+	auto end = geom::centroid(vecThunk(ws->geomRel(sg))[next-1].boundary);
 
 	cairo_t* drawer = cairo_create(sg.canvas);
 	double size = s.siz * 10.0;
@@ -98,6 +98,10 @@ Callback line(Workspace* ws, Segment s, Brush b)
 	// ensure_cache(ws, b);
 	// Pick the line(s) palette
 	uint32_t palette_mask = 0;
+	for(auto m : match_constraint("palette",s.constraint))
+	{
+		palette_mask |= m.mask;
+	}
 	Palette palette = pick_palette(ws, palette_mask);
 	Color color = pick_color(ws, &palette, s.constraint);
 

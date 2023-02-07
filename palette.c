@@ -130,6 +130,7 @@ Palette reds()
 	return from_string_vecs(primary, complimentary, triadic);
 }
 
+// PRIDE, WHOO!!!!
 Palette trans()
 {
 	std::vector<std::string> primary
@@ -156,6 +157,17 @@ Palette random_palette(Workspace* ws)
 	return palette;
 }
 
+Palette greens()
+{
+	return from_string_vecs(green,{},{});
+}
+
+Palette blues()
+{
+	return from_string_vecs(blue,{},{});
+}
+
+
 Palette pick_palette(Workspace* ws, uint32_t mask)
 {
 	if(mask == 0) { return random_palette(ws); }
@@ -173,6 +185,12 @@ Palette pick_palette(Workspace* ws, uint32_t mask)
 				break;
 			case (uint32_t)palette::TRANS:
 				base.push_back(trans());
+				break;
+			case (uint32_t)palette::BLUES:
+				base.push_back(blues());
+				break;
+			case (uint32_t)palette::GREENS:
+				base.push_back(greens());
 				break;
 		}
 	}

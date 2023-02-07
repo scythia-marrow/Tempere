@@ -85,9 +85,13 @@ Constraint ConstraintFactory::create(double zip, std::function<double()> &rand)
 		return avgnum;
 	};
 	// Select a random distance function with EV of the zipfs
-	uint32_t distidx = uint32_t(floor(avgdistribution(zip,zip)));
+	uint32_t sizdist = dist.size();
+	double placedist = avgdistribution(zip,zip)*sizdist;
+	uint32_t distidx = uint32_t(floor(placedist));
 	// Also do that for the mask
-	uint32_t maskidx = uint32_t(floor(avgdistribution(zip,zip)));
+	uint32_t sizmask = mask.size();
+	double placemask = avgdistribution(zip,zip)*sizmask;
+	uint32_t maskidx = uint32_t(floor(placemask));
 	// For the dial make an average around the middle, biased by zip
 	double dial = avgdistribution(0.5-zip,0.5+zip);
 	// Now return it
@@ -130,7 +134,7 @@ std::vector<Match> match_constraint(std::string s, std::vector<Constraint> cons)
 	for(auto x : cons)
 	{
 		bool eq = s.compare(x.name);
-		if(eq) { ret.push_back({i, x.type, x.mask, x.dial}); }
+		if(eq==0) { ret.push_back({i, x.type, x.mask, x.dial}); }
 		i++;
 	}
 	return ret;

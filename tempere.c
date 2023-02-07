@@ -258,15 +258,6 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	if(node.size() < 3) { return { node }; }
 	// Initialize the state for the chain algorithm
 	auto mark = shard->fixedMark();
-	if(mark.count({{5.401924,9.000000},{8.0,9.0}}))
-	{
-		printf("MARKED FROM BEGINNING!\n\t");
-		for(auto m : mark)
-		{
-			printf("(%f,%f) -> (%f,%f)", m.head.x,m.head.y,m.tail.x,m.tail.y);
-		}
-		printf("\n");
-	}
 	// Basic loop: find the next polygon then mark enclosed vertices
 	uint32_t b = 0;
 	// Lambda to process a single path to completion
@@ -291,21 +282,18 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		Optional<Edge> base = shard->nextUnmarked(mark);
 		// If there is no unmarked edge we are done
 		if(!base.is) { break; }
-		// TODO: remove debug statement
 		// Construct the next chain state
 		ChainState S = initChainState(base.dat);
 		// Run both paths to completion
 		S.left = runpath(S.left,chain::HANDEDNESS::LEFT);
 		S.right = runpath(S.right,chain::HANDEDNESS::RIGHT);
 		// Then weave a polygon from the chain state
-		// TODO: remove debug statement
 		Polygon newpoly = weave(S);
 		// Add the new polygon
 		ret.push_back(newpoly);
 		// Create new marks for this polygon
 		for(auto u : edgeThunk(newpoly)) { mark.insert(u); }
 		b++;
-		if(b > 75) { printf("TOO MANY SEGS!"); assert(false); }
 	}
 	return ret;
 }
