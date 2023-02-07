@@ -69,6 +69,7 @@ void shapelambda(Segment s, Color col, int N, struct dials d)
 	// Create a canvas to draw on!
 	cairo_t* drawer = cairo_create(s.canvas);
 	cairo_set_source_rgba(drawer, col.red, col.green, col.blue, 1.0);
+	//cairo_set_source_rgba(drawer, col.red, col.green, col.blue, 0.1);
 	// Draw a circle if complexity is too low!
 	if(N < 3) { draw_circle(drawer, area, mid, d); }
 	// Draw a regular N-gon if complexity is high!

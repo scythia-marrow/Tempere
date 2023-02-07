@@ -22,6 +22,7 @@ void solidlambda(Segment s, Color color)
 	cairo_set_line_width(drawer, 10.0);
 	// Color
 	cairo_set_source_rgba(drawer, color.red, color.green, color.blue, 1);
+	//cairo_set_source_rgba(drawer, color.red, color.green, color.blue, .1);
 	// Draw along the vertexes
 	Vertex anchor = scale(s.boundary[0], s.scale);
 	cairo_move_to(drawer, anchor.x, anchor.y);

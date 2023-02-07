@@ -154,7 +154,9 @@ void Layer::tempere(std::vector<Vertex> boundary)
 			localMap[id].push_back(p.sid);
 		}
 	}
-	// Create the local relationships
+	// Clear the local relationships
+	geomRel = {};
+	// Create the local relationships anew
 	for(auto p : shard)
 	{
 		for(auto id : p.vid)
@@ -210,8 +212,9 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary, double 
 	std::uniform_real_distribution<double> dis(0.0, 1.0);
 	auto S = std::chrono::system_clock::now().time_since_epoch().count();
 	std::cout << "SEED" << S << std::endl;
+	//uint64_t seed = S;
 	//uint64_t seed = 1675128892961642292;
-	uint64_t seed = S;
+	uint64_t seed = 1675709149732672750;
 	gen.seed(seed);
 	rand = [=]() mutable -> double { return dis(gen); };
 	// Setup the background layer
@@ -462,14 +465,19 @@ std::vector<Callback> Workspace::drawSegment(Segment s, std::vector<double> z)
 	// TODO: allow brushes to indicate a probability of being done after
 	// running once. This will allow multiple brushes on the same segment
 	// while also allowing for sorting of brushstrokes by priority.
-	double adjust = 0.5;
-	double r;
-	while((r = rand()) < (cb.priority * adjust))
+	double adjust = 1.0;
+	double r = rand();
+	uint32_t drawnum = 0;
+	while(r < ((1.0-cb.priority) * adjust))
 	{
+		printf("Rand %f\n",r);
 		cb = weighted_choice(this, cand, adjust);
+		printf("Usable %s\n",cb.usable ? "true" : "false");
 		if(!cb.usable) { break; }
 		ret.push_back(cb);
-		adjust *= 0.5;
+		adjust *= 0.95;
+		r = rand();
+		drawnum++;
 	}
 	return ret;
 }

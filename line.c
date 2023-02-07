@@ -23,12 +23,26 @@ typedef struct linestate
 } LINE_STATE;
 
 // Matching code!
-double line_number(Segment s, LINE_STATE state)
+double line_number(Workspace* ws, Segment s, LINE_STATE state)
 {
-	// Decide the number of lines
+	// Decide the number of lines, depending on number of neighbors
 	double area = abs(signed_area(s.boundary));
 	area = area < 1.0 ? 1.0 : area;
 	double N = ((s.scale * state.cmp) / (area * state.siz));
+	// Get the number of neighbors
+	uint32_t neighbors = ws->geomRel(s).size();
+	/*
+	if(neighbors < N)
+	{
+		printf("NEIGHBORS %d\n\t",neighbors);
+		printf("CENTERS");
+		for(auto n : ws->geomRel(s))
+		{
+			printf("(%f,%f) ",geom::midpoint(n.boundary).x,geom::midpoint(n.boundary).y);
+		}
+		printf("\n");
+		return neighbors;
+	}//*/
 	return N;
 }
 
@@ -44,55 +58,10 @@ std::vector<uint64_t> marked_ids(Workspace* ws, Brush b)
 	return ret;
 }
 
-// Because the vertexes created only from constraints, they are the same!
-std::vector<Vertex> vertexes(Workspace* ws, Segment s, Brush b)
+std::vector<Segment> vecThunk(std::set<Segment> item)
 {
-	/*
-	double size = match_accumulate_dial(
-		CONS::SIZE, b.cons, s->constraint);
-	double cmp = match_accumulate_dial(
-		CONS::COMPLEXITY, b.cons, s->constraint);
-	double ori = match_accumulate_dial(
-		CONS::ORIENTATION, b.cons, s->constraint);
-	*/
-	std::vector<Vertex> ret;
-	// The first vertex is the centroid
-	ret.push_back(scale(centroid(s.boundary), s.scale));
-	// TODO: this!
-	/*for(int i = 1; i < ws->br_cache[b][sg]; i++)
-	{
-		
-	}*/
-	// Create a number of vertexes equal to the thingymabober
-	return ret;
-}
-
-std::vector<Vertex> choose_vertex(Workspace* ws, LINE_STATE s, uint32_t N)
-{
-	// Vector to return
-	std::vector<Vertex> ret;
-	// Find other segments with lines to them
-	std::vector<uint64_t> vertex = marked_ids(ws, s.brush);
-	// If there are no other segments
-	if(vertex.size() == 0) { return ret; }
-	// The weights
-	std::vector<std::pair<double, Vertex>> sorted;
-	// Insertion sort, nice and clean
-	/*
-	auto insertsort = [&](Vertex vrt, double weight) -> void
-	{
-		int i; for(i = 0; sorted[i].first < weight; i++); // Seek
-		sorted.insert(sorted.begin() + i, {weight, vrt});
-	};*/
-	// Calculate weight of each vertex based on orientation, dist, ect.
-	// TODO: start here!
-	// Return the first N from sorted
-	if(sorted.size() < N)
-	{
-		printf("NOT ENOUGH! %i\n", N);
-		return ret;
-	}
-	for(uint32_t i = 0; i < N; i++) { ret.push_back(sorted[i].second); }
+	std::vector<Segment> ret = {};
+	for(auto i : item) { ret.push_back(i); }
 	return ret;
 }
 
@@ -103,13 +72,11 @@ void linelambda(Workspace* ws, Segment sg, LINE_STATE s)
 	bool exists = ws->br_cache[s.brush].count(sg);
 	uint32_t next = !exists ? 1 : ws->br_cache[s.brush][sg] + 1;
 	// Add a new vertex if there is enough complexity to justify it
-	if(next < line_number(sg, s)) { ws->br_cache[s.brush][sg] = next; }
-	int num = ws->br_cache[s.brush][sg];
-	// Draw lines if there are enough matches to justify them
-	std::vector<Vertex> head = vertexes(ws, sg, s.brush);
-	std::vector<Vertex> tail = choose_vertex(ws, s, num);
-	std::cout << "LINE DRAW " << head.size() << " " << tail.size() << std::endl;
-	if(head.size() == 0 || tail.size() == 0) { return; }
+	if(next < line_number(ws, sg, s)) { ws->br_cache[s.brush][sg] = next; }
+	else { return; }
+	// Draw another line if there are enough matches to justify them
+	auto start = geom::midpoint(sg.boundary);
+	auto end = geom::midpoint(vecThunk(ws->geomRel(sg))[next-1].boundary);
 
 	cairo_t* drawer = cairo_create(sg.canvas);
 	double size = s.siz * 10.0;
@@ -119,17 +86,8 @@ void linelambda(Workspace* ws, Segment sg, LINE_STATE s)
 	Color c = s.color;
 	cairo_set_line_width(drawer, size);
 	cairo_set_source_rgba(drawer, c.red, c.green, c.blue, 1.0);
-
-	// Draw a number of lines from different starting points
-	for(int i = 0; i < num; i++)
-	{
-		// Choose a start and end point
-		Vertex vrt_head = head[int(ws->rand() * head.size())];
-		Vertex vrt_tail = tail[int(ws->rand() * tail.size())];
-		cairo_move_to(drawer, vrt_head.x, vrt_head.y);
-		cairo_line_to(drawer, vrt_tail.x, vrt_tail.y);
-	}
-
+	cairo_move_to(drawer, ws->scale() * start.x, ws->scale() * start.y);
+	cairo_line_to(drawer, ws->scale() * end.x, ws->scale() * end.y);
 	cairo_stroke(drawer);
 	cairo_destroy(drawer);
 }
@@ -158,7 +116,7 @@ Callback line(Workspace* ws, Segment s, Brush b)
 	};
 
 	// Find the match
-	double N = line_number(s, state);
+	double N = line_number(ws, s, state);
 	double match = N <= 0.0 ? 0.0 : (1.0 / (1.0 + log(N)));
 
 	Callback ret
