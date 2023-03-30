@@ -9,12 +9,15 @@
 // Module imports
 #include "render.h"
 #include "constraints.h"
+#include "distribution.h"
+
+using namespace dst;
 
 SizeFactory::SizeFactory()
 {
 	name = "size";
 	type = INITTYPE::DIAL;
-	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	dist = { DIST::GAUSSIAN, DIST::BIMODAL };
 	mask = {};
 }
 
@@ -22,7 +25,7 @@ ComplexityFactory::ComplexityFactory()
 {
 	name = "complexity";
 	type = INITTYPE::DIAL;
-	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	dist = { DIST::GAUSSIAN, DIST::BIMODAL };
 	mask = {};
 }
 
@@ -30,7 +33,7 @@ OrientationFactory::OrientationFactory()
 {
 	name = "orientation";
 	type = INITTYPE::DIAL;
-	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	dist = { DIST::UNIFORM };
 	mask = {};
 }
 
@@ -38,7 +41,7 @@ PerturbationFactory::PerturbationFactory()
 {
 	name = "perturbation";
 	type = INITTYPE::DIAL;
-	dist = { DIST::DDELTA, DIST::GAUSSIAN };
+	dist = { DIST::GAUSSIAN };
 	mask = {};
 }
 
@@ -88,12 +91,11 @@ Constraint ConstraintFactory::create(double zip, std::function<double()> &rand)
 	uint32_t sizdist = dist.size();
 	double placedist = avgdistribution(zip,zip)*sizdist;
 	uint32_t distidx = uint32_t(floor(placedist));
-	// Also do that for the mask
+	// Now do the mask based on the type distribution
 	uint32_t sizmask = mask.size();
-	double placemask = avgdistribution(zip,zip)*sizmask;
-	uint32_t maskidx = uint32_t(floor(placemask));
-	// For the dial make an average around the middle, biased by zip
-	double dial = avgdistribution(0.5-zip,0.5+zip);
+	uint32_t maskidx = dst::discrete_sample(dist[distidx], sizmask, rand);
+	// For the dial also base it on the type
+	double dial = dst::continuous_sample(dist[distidx], rand);
 	// Now return it
 	switch(type)
 	{

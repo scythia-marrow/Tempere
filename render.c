@@ -142,6 +142,16 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
 	printf("Shattered %d into %d\n",shard.size(),shatter.size());
+	// DEBUG!
+	if(shard.size() == shatter.size())
+	{
+		for(auto p : shard)
+		{
+			std::vector<Vertex> perimiter;
+			for(auto v : p.vid) { perimiter.push_back(vertex[v]); }
+			auto piece = geom::tempereDebug(perimiter, boundary);
+		}
+	}
 	shard = shatter;
 	constraint = shattercon;
 	// Store a map of shards and their verticies for local relationships

@@ -442,3 +442,12 @@ std::vector<Polygon> geom::tempere(Polygon glass, Polygon frac)
 	chain::Chainshard* shard = new chain::Chainshard(glass, frac);
 	return chain::chain(shard);
 }
+
+std::vector<Polygon> geom::tempereDebug(Polygon glass, Polygon frac)
+{
+	if(frac.size() < 2) { printf("Low Size"); return { glass }; }
+	chain::Chainshard* shard = new chain::Chainshard(glass, frac);
+	auto ret = chain::chain(shard);
+	shard->printDebugInfo();
+	return ret;
+}

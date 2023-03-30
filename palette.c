@@ -9,6 +9,7 @@
 #include <random>
 
 // Module imports
+#include "distribution.h"
 #include "palette.h"
 #include "bitutils.h"
 #include "render.h"
@@ -81,7 +82,7 @@ PaletteFactory::PaletteFactory()
 {
 	name = "palette";
 	type = INITTYPE::MASK;
-	dist = {};
+	dist = { DIST::UNIFORM };
 	mask = {
 		(uint32_t)palette::RAND,
 		(uint32_t)palette::REDS,

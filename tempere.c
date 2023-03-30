@@ -80,14 +80,7 @@ void chain::Chainshard::shatter(const Polygon glass, const Polygon shard)
 		for(auto b : edgeThunk(base))
 		{
 			// Mark degenerate portions of the base
-			if(countedge(base,b) > 1)
-			{
-				if(eq(b,{{5.401924,9.000000},{8.0,9.0}}))
-				{
-					printf("MULTIPLE COUNTS OF INVALID!\n");
-				}
-				mark.insert(b);
-			}
+			if(countedge(base,b) > 1) { mark.insert(b); }
 			// For each edge get all intersection verticies, sorted
 			auto sortBase = sortInter(b,chisel);
 			// Now add them all to the graph
@@ -258,8 +251,6 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	if(node.size() < 3) { return { node }; }
 	// Initialize the state for the chain algorithm
 	auto mark = shard->fixedMark();
-	// Basic loop: find the next polygon then mark enclosed vertices
-	uint32_t b = 0;
 	// Lambda to process a single path to completion
 	auto runpath = [=](PathState P, chain::HANDEDNESS hand)
 	{
@@ -277,6 +268,8 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 	};
 	// DEBUG SET
 	//while(mark.size() < node.size() && b < 100)
+	// Basic loop: find the next polygon then mark enclosed vertices
+	uint32_t b = 0;
 	while(b < 100)
 	{
 		Optional<Edge> base = shard->nextUnmarked(mark);
@@ -296,4 +289,27 @@ std::vector<Polygon> chain::chain(Chainshard* shard)
 		b++;
 	}
 	return ret;
+}
+
+void chain::Chainshard::printDebugInfo()
+{
+	bool interesting = false;
+	for(auto n : node)
+	{
+		if(graph[ensureID(n)].size() > 2)
+		{
+			interesting = true;
+			break;
+		}
+	}
+	if(!interesting) { return; }
+	printf("Created graph\n");
+	for(auto n : node)
+	{	
+		printf("\tGraph %f %f\n",n.x,n.y);
+		for(auto v : graph[ensureID(n)])
+		{
+			printf("\t\tVrt %f %f\n",v.x,v.y);
+		}
+	}
 }

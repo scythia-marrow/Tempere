@@ -4,15 +4,11 @@
 
 // Module imports
 #include "render.h"
+#include "distribution.h"
 
 #ifndef constraints_h
 #define constraints_h
-enum DIST : uint32_t
-{
-	DDELTA,
-	GAUSSIAN,
-	NONE // This constraint has no reasonable definition of a metric
-};
+using namespace dst;
 
 class ConstraintFactory
 {

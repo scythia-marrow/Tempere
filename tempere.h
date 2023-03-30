@@ -33,6 +33,9 @@ namespace chain
 			uint32_t ensureID(Vertex);
 		public:
 			Chainshard();
+			// SIGH TODO: remove
+			void printDebugInfo();
+			// Stuff
 			const std::vector<Vertex> getNode();
 			const std::set<Edge,geom::edgecomp> fixedMark();
 			// Find the next unmarked edge

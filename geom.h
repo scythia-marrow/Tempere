@@ -76,6 +76,8 @@ namespace geom
 	Optional<Vertex> intersect_edge_edge(Edge e1, Edge e2);
 	std::vector<Vertex> intersect_ray_poly(Polygon, Vertex, Vector);
 	std::vector<Polygon> tempere(Polygon,Polygon);
+	// TODO: remove this
+	std::vector<Polygon> tempereDebug(Polygon,Polygon);
 	// Polygon Tests
 	bool on_edge(Edge e, Vertex v);
 	bool on_edge(Polygon, Vertex);
