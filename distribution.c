@@ -9,10 +9,11 @@ double clamp(double s)
 
 double gaussian(std::function<double()> &r)
 {
+	double C = 0.2;
 	double s1 = r();
 	double s2 = r();
 	double ret = sqrt(-2.0 * log(s1)) * sin(2.0 * M_PI * s2);
-	return ret;
+	return ret * C;
 }
 
 double dst::continuous_sample(dst::DIST type, std::function<double()> &r)

@@ -114,10 +114,8 @@ Callback symmetry(Workspace* ws, Operator op)
 		{
 			// If we proceed, mark this segment as used
 			// ws->op_cache[op][*max_seg] = 1;
-			// int N = decide_symmetry(ws, max_seg, op);
-			// TODO: REMOVE HARDCODE!
-			int N = 8;
-			printf("SYMMETRY (%d)...\n",N);
+			int N = decide_symmetry(ws, max_seg, op);
+			printf("\nSYMMETRY (%d)...\n",N);
 			symmetrylambda(ws, op, max_seg, N);
 		}
 	};

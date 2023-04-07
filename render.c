@@ -306,7 +306,7 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 	// Find the (new) threshold
 	double max = 0.0;
 	for(auto c : cand) { max = c.match > max ? c.match : max; }
-	printf("\nNew Threshold: %f\n",max);
+	printf("\nNew Threshold: %f",max);
 	return max;
 }
 
@@ -446,7 +446,7 @@ void Workspace::setConstraint(
 bool Workspace::ensureReadyRender()
 {
 	// A gid generator
-	std::cout << "READYING RENDER" << std::endl;
+	printf("\nREADYING RENDER\n");
 	// Ensure all segments are cached correctly
 	if(!ensureReadyLayout()) { return false; }
 	return true;
