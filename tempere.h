@@ -26,7 +26,7 @@ namespace chain
 	{
 		private:
 			std::vector<Vertex> node;
-			std::set<Edge,geom::edgecomp> mark;
+			std::vector<Edge> mark;
 			std::map<uint32_t,std::set<Vertex,geom::vrtcomp>> graph;
 			//Optional<uint32_t> minUnmarkedSlope(uint32_t);
 			void shatter(const Polygon glass, const Polygon shard);
@@ -37,10 +37,9 @@ namespace chain
 			void printDebugInfo();
 			// Stuff
 			const std::vector<Vertex> getNode();
-			const std::set<Edge,geom::edgecomp> fixedMark();
+			const std::vector<Edge> fixedMark();
 			// Find the next unmarked edge
-			const Optional<Edge> nextUnmarked(
-				std::set<Edge,geom::edgecomp>);
+			const Optional<Edge> nextUnmarked(std::vector<Edge>);
 			// Sort a path just by angle
 			const std::vector<Vertex> sortedPath(Vertex);
 			// Sort a path by signed angle from an edge
@@ -75,5 +74,8 @@ namespace chain
 	Optional<PathState> stateDel(const PathState, Vertex);
 	Polygon weave(const ChainState);
 	std::vector<Polygon> chain(Chainshard* shard);
+	std::vector<Polygon> chain(Chainshard* shard, bool verbose);
+	void printDebugInfo(const ChainState, Polygon poly);
+	void printDebugInfo(Chainshard*, Polygon, Polygon);
 };
 #endif

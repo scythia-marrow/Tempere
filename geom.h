@@ -10,6 +10,9 @@
 // Module imports
 #include "optional.h"
 
+// TODO: UGHHH
+#include <stdio.h>
+
 #ifndef geom_h
 #define geom_h
 using opt::Optional;
@@ -102,23 +105,16 @@ namespace geom
 	}
 	};
 	// A bidirectional weak ordering of edges! It's difficult math!
+	// TODO: Too difficult, I'm just going to manually hack it for now.
+	/*
 	struct edgecomp {
 	bool operator() (const Edge &a, const Edge &b) const
 	{
 		if(eq(a,b)) { return false; }
-		if(!eq(arclen(a),arclen(b)))
-		{
-			return arclen(a) < arclen(b);
-		}
-		if(!eq(abs(slope(a)),abs(slope(b))))
-		{
-			return abs(slope(a)) < abs(slope(b));
-		}
-		// Last comparison is location of midpoint
-		Vertex midA = scale(add(a.head,a.tail),0.5);
-		Vertex midB = scale(add(b.head,b.tail),0.5);
-		return std::tie(midA.x,midA.y) < std::tie(midB.x,midB.y);
+		return
+			std::tie(a.head.x,a.head.y,b.tail.x,b.tail.y) <
+			std::tie(b.head.x,b.head.y,b.tail.x,b.tail.y);
 	}
-	};
+	};*/
 };
 #endif

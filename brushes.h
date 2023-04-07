@@ -7,6 +7,7 @@ Callback solid(Workspace*, Segment, Brush);
 Callback shape(Workspace*, Segment, Brush);
 Callback line(Workspace*, Segment, Brush);
 Callback shade(Workspace*, Segment, Brush);
+Callback specularhighlight(Workspace*, Segment, Brush);
 
 static Brush shape_brush
 {
@@ -46,5 +47,19 @@ static Brush line_brush
 		"orientation"
 	},
 	.draw = line
+};
+
+static Brush specularhighlight_brush
+{
+	.name = "specularhighlight",
+	.priority = 0.7,
+	.cons =
+	{
+		"palette",
+		"complexity",
+		"size",
+		"lighting"
+	},
+	.draw = specularhighlight
 };
 #endif

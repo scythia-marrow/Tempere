@@ -45,6 +45,14 @@ PerturbationFactory::PerturbationFactory()
 	mask = {};
 }
 
+LightingFactory::LightingFactory()
+{
+	name = "lighting";
+	type = INITTYPE::DIAL;
+	dist = { DIST::UNIFORM };
+	mask = {};
+}
+
 
 Constraint ConstraintFactory::create()
 {

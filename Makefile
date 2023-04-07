@@ -4,8 +4,8 @@ LDFLAGS=$(shell pkg-config --libs cairo-xlib)
 
 TILING_TEST=tiling.c -DTEST_TILING
 CRYSTAL_TEST=crystal.c tiling.o -DTEST_CRYSTAL
-BRUSH_C=palette.c solid.c shape.c line.c
-BRUSH_O=palette.o solid.o shape.o line.o
+BRUSH_C=palette.c solid.c shape.c line.c specularhighlight.c
+BRUSH_O=palette.o solid.o shape.o line.o specularhighlight.o
 CONSTRAINT_C=constraints.c distribution.c
 CONSTRAINT_O=constraints.o distribution.o
 OPERATOR_C=symmetry.c figureandground.c focalpoints.c gradient.c

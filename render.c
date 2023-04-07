@@ -141,7 +141,8 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	}
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
-	printf("Shattered %d into %d\n",shard.size(),shatter.size());
+	printf("\rShattered %d into %d",shard.size(),shatter.size());
+	fflush(stdout);
 	// DEBUG!
 	if(shard.size() == shatter.size())
 	{
@@ -305,7 +306,7 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 	// Find the (new) threshold
 	double max = 0.0;
 	for(auto c : cand) { max = c.match > max ? c.match : max; }
-	std::cout << "NEW THRESHOLD " << max << std::endl;
+	printf("\nNew Threshold: %f\n",max);
 	return max;
 }
 
@@ -480,9 +481,9 @@ std::vector<Callback> Workspace::drawSegment(Segment s, std::vector<double> z)
 	uint32_t drawnum = 0;
 	while(r < ((1.0-cb.priority) * adjust))
 	{
-		printf("Rand %f\n",r);
+		// printf("Rand %f\n",r);
 		cb = weighted_choice(this, cand, adjust);
-		printf("Usable %s\n",cb.usable ? "true" : "false");
+		// printf("Usable %s\n",cb.usable ? "true" : "false");
 		if(!cb.usable) { break; }
 		ret.push_back(cb);
 		adjust *= 0.95;
@@ -518,8 +519,8 @@ bool Workspace::render()
 			if(s.layer == h && zipfs.size() > 0)
 			{
 				frozen.clear();
-				std::cout << "Drawing Segment "
-					<< s.sid << "..." << std::endl;
+				printf("\rDrawing Segment %d...",s.sid);
+				fflush(stdout);
 				for(auto cb : drawSegment(s, zipfs))
 				{
 					insertsort(frozen, cb);
@@ -529,6 +530,7 @@ bool Workspace::render()
 			}
 		}
 	}
+	printf("\n");
 	return true;
 }
 
@@ -542,6 +544,7 @@ void init_constraints(Workspace* ws)
 		ComplexityFactory(),
 		OrientationFactory(),
 		PerturbationFactory(),
+		LightingFactory(),
 		// Add more stuff here
 		PaletteFactory()
 		
@@ -570,8 +573,9 @@ void init_workspace(Workspace* ws)
 	std::vector<Brush> brush =
 	{
 		solid_brush,
-		shape_brush,
-		line_brush
+		// shape_brush,
+		// line_brush,
+		specularhighlight_brush
 	};
 	for(auto br : brush) { ws->addBrush(br); }
 	// Initialize the constraints

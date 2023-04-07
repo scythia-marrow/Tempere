@@ -53,6 +53,12 @@ class PerturbationFactory : public ConstraintFactory
 		PerturbationFactory();
 };
 
+class LightingFactory : public ConstraintFactory
+{
+	public:
+		LightingFactory();
+};
+
 typedef struct match
 {
 	uint32_t i;

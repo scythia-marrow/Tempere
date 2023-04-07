@@ -445,9 +445,17 @@ std::vector<Polygon> geom::tempere(Polygon glass, Polygon frac)
 
 std::vector<Polygon> geom::tempereDebug(Polygon glass, Polygon frac)
 {
-	if(frac.size() < 2) { printf("Low Size"); return { glass }; }
+	if(frac.size() < 2) { return { glass }; }
 	chain::Chainshard* shard = new chain::Chainshard(glass, frac);
-	auto ret = chain::chain(shard);
-	shard->printDebugInfo();
+	bool interesting = true;
+	for(auto v : frac)
+	{
+		if(!geom::find(glass,v).is) { interesting = false; }
+	}
+	auto ret = chain::chain(shard,interesting);
+	if(interesting)
+	{
+		chain::printDebugInfo(shard, glass, frac);
+	}
 	return ret;
 }
