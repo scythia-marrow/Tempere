@@ -141,8 +141,8 @@ void Layer::tempere(std::vector<Vertex> boundary)
 	}
 	// For now just straight replace all shards with the new stuff
 	assert(shard.size() <= shatter.size());
-	printf("\rShattered %d into %d",shard.size(),shatter.size());
-	fflush(stdout);
+	// printf("\rShattered %d into %d\n",shard.size(),shatter.size());
+	// fflush(stdout);
 	// DEBUG!
 	if(shard.size() == shatter.size())
 	{
@@ -236,6 +236,40 @@ Workspace::Workspace(cairo_surface_t* can, std::vector<Vertex> boundary, double 
 	// Setup the most basic constraints
 }
 
+// Copy constructor
+Workspace::Workspace(const Workspace& base, cairo_surface_t* can)
+{
+	const_canvas = can;
+	const_scale = base.const_scale;
+	constraint = base.constraint;
+	oper = base.oper;
+	brush = base.brush;
+	// Create a random lambda that avoids the GODAMN BOILERPLATE!
+	// Because random is statefull we need a mutable tab
+	// This is bonkers but at least you CAN do bonkers stuff in C++
+	std::default_random_engine gen;
+	std::uniform_real_distribution<double> dis(0.0, 1.0);
+	auto S = std::chrono::system_clock::now().time_since_epoch().count();
+	std::cout << "SEED" << S << std::endl;
+	uint64_t seed = S;
+	//uint64_t seed = 1675128892961642292;
+	//uint64_t seed = 1675709149732672750;
+	gen.seed(seed);
+	rand = [=]() mutable -> double { return dis(gen); };
+	// Add all layers
+	height = base.height;
+	background = base.background;
+	/*
+	for(auto it = base.layer.begin(); it != base.layer.end(); ++it)
+	{
+		layer[it->first] = it->second;
+		if(it->first == 0) { background = it->second; }
+	}*/
+	logic = base.logic;
+	// Ensure we are ready
+	ensureReadyLayout();
+}
+
 Layer* Workspace::addLayer(uint32_t h, std::vector<Vertex> boundary)
 {
 	Layer* ptr = new Layer(boundary);
@@ -306,7 +340,7 @@ double Workspace::layoutStep(std::vector<double> zipfs)
 	// Find the (new) threshold
 	double max = 0.0;
 	for(auto c : cand) { max = c.match > max ? c.match : max; }
-	printf("\nNew Threshold: %f",max);
+	// printf("\nNew Threshold: %f",max);
 	return max;
 }
 
@@ -329,7 +363,17 @@ bool Workspace::addConstraint(Constraint con)
 	return true;
 }
 
-bool Workspace::runTempere(uint32_t steps)
+
+cairo_surface_t* makeSurface(std::string filename)
+{
+	cairo_surface_t* surface;
+	surface = cairo_svg_surface_create(filename.c_str(),1920,1080);
+	cairo_svg_surface_restrict_to_version(surface, CAIRO_SVG_VERSION_1_2);
+	cairo_svg_surface_set_document_unit(surface, CAIRO_SVG_UNIT_PX);
+	return surface;
+}
+
+bool Workspace::runTempere(uint32_t steps,bool debug)
 {
 	// Run a certain amount of layout steps
 	// Zipf's weighting for operators
@@ -346,6 +390,16 @@ bool Workspace::runTempere(uint32_t steps)
 		// Otherwise, layout the picture one step at a time
 		threshold = layoutStep(zipfs);
 		min = min == -1 ? 0.0 : min + 0.01;
+		// If we are in debug code, render step
+		if(debug) {
+			printf("Stop values %f,%f\n",min,threshold);
+			// Make a snapshot image
+			std::string output = "./debug/DebugStep" + std::to_string(step) + ".svg";
+			printf(output.c_str());
+			cairo_surface_t* srfc = makeSurface(output);
+			Workspace* snap = new Workspace(*this,srfc);
+			snap->renderDebug();
+		}
 	}
 	return true;
 }
@@ -493,6 +547,31 @@ std::vector<Callback> Workspace::drawSegment(Segment s, std::vector<double> z)
 	return ret;
 }
 
+bool Workspace::renderDebug()
+{
+	printf("Entering debug render");
+	if(!ensureReadyRender())
+	{
+		printf("Broken render!\n");
+		return false;
+	} 
+	// Draw the background in solid colors, with border
+	std::vector<Segment> seg = cut();
+	printf("There are %i total segments",seg.size());
+	for(auto s : seg)
+	{
+		if(s.layer == 0)
+		{
+			// printf("BACKGROUND SEGMENT %d\n",s.sid);
+			solid_brush.draw(this,s,solid_brush).callback();
+		}
+	}
+	// Draw the logical connections
+	// TODO: implement
+	// Draw the local connections
+	// TODO: implement
+}
+
 bool Workspace::render()
 {
 	// Ensure all layers are segmented properly
@@ -618,21 +697,17 @@ void save_picture(cairo_surface_t* surface, std::string filename)
 }
 
 #ifdef TEST_RENDER
-void test_render(std::string filename)
+void test_render(std::string filename, bool debug)
 {
 	// The beggining boundary is just all edges!
 	// Default aspect ratio is 16:9, or 1920 x 1080
-	cairo_surface_t* surface;
+	cairo_surface_t* surface = makeSurface(filename);
 	std::vector<Vertex> boundary = {
 		{0.0,0.0},
 		{16.0,0.0},
 		{16.0,9.0},
 		{0.0,9.0}};
 	double scale = 120.0;
-	surface = cairo_svg_surface_create(filename.c_str(),1920,1080);
-	cairo_svg_surface_restrict_to_version(surface, CAIRO_SVG_VERSION_1_2);
-	cairo_svg_surface_set_document_unit(surface, CAIRO_SVG_UNIT_PX);
-
 	// TODO: maybe resolution choice?
 	Workspace* draft = new Workspace(surface,boundary,scale);
 	// Initialize operators and brushes
@@ -641,7 +716,7 @@ void test_render(std::string filename)
 	//draft->runTempere(-1);
 	//draft->runTempere(8);
 	//draft->runTempere(6);
-	draft->runTempere(110);
+	draft->runTempere(110,debug);
 	// Render the picture to a canvas
 	draft->render();
 	// Save the picture to a file.
@@ -653,19 +728,23 @@ void test_render(std::string filename)
 int main(int argc, char* argv[])
 {
 	std::string filename = "image.svg";
+	bool debug = false;
 	int arg = 0;
-	while((arg = getopt(argc, argv, "f:")) != -1)
+	while((arg = getopt(argc, argv, "gf:")) != -1)
 	{
 		switch(arg)
 		{
 			case 'f':
 				filename = optarg;
 				break;
+			case 'g':
+				debug = true;
+				break;
 			default:
 				continue;
 		}
 	}
-	test_render(filename);
+	test_render(filename,debug);
 	return 0;
 }
 #endif

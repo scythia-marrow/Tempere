@@ -76,9 +76,9 @@ typedef struct callback
 // Basically, it plans the layout of the drawing.
 typedef struct op
 {
-	const std::string name;
+	std::string name;
 	// The constraints it uses for different types
-	const std::set<std::string> cons;
+	std::set<std::string> cons;
 	std::function<Callback(Workspace*,struct op)> layout;
 } Operator;
 
@@ -106,17 +106,18 @@ namespace std
 			return std::hash<std::string>{}(n.name);
 		}
 	};
+
 }
 
 // A brush stores a name, the constraints it reads, and a drawing function
 typedef struct brush
 {
 	// The name of this brush
-	const std::string name;
+	std::string name;
 	// The prescidence of the brush
 	double priority;
 	// The constraints it uses
-	const std::set<std::string> cons;
+	std::set<std::string> cons;
 	// The actual drawing function
 	std::function<Callback(Workspace*, struct segment, struct brush)> draw;
 } Brush;
@@ -317,8 +318,9 @@ class Workspace
 	// Public operations, called by the runtime directly or through DI
 	public:
 		// Initializer for the workspace
-		Workspace();
+		// Workspace();
 		Workspace(cairo_surface_t*,std::vector<Vertex>,double);
+		Workspace(const Workspace&,cairo_surface_t*);
 		// Find segments with a certain match, default all segments
 		std::vector<Segment> cut();
 		std::set<Segment> geomRel(Segment);
@@ -330,8 +332,9 @@ class Workspace
 		bool addBrush(Brush);
 		bool addOperator(Operator);
 		bool addConstraint(Constraint);
-		bool runTempere(uint32_t steps);
+		bool runTempere(uint32_t steps,bool);
 		bool render();
+		bool renderDebug();
 		// Operator specific public functions for segment manipulations
 		void setConstraint(Operator, Segment, std::vector<Constraint>);
 		// TODO: may need to add operator verification here

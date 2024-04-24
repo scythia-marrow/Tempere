@@ -35,6 +35,9 @@ operators:
 constraints:
 	$(CC) $(CFLAGS) -c $(CONSTRAINT_C) $(LDFLAGS)
 
+render: geom tempere brushes operators constraints
+	$(CC) $(CFLAGS) -o render $(RENDER_TEST) $(LDFLAGS)
+
 test_tiling:
 	$(CC) $(CFLAGS) -o testtiling $(TILING_TEST) $(LDFLAGS)
 	./testtiling
